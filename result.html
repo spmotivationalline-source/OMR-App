@@ -114,7 +114,7 @@
                 let y = 15;
 
                 function addText(text, x, size, style, align = 'left') {
-                    if (y > pageHeight - 15) {
+                    if (y > pageHeight - 20) { // Added more margin at bottom
                         pdf.addPage();
                         y = 15;
                     }
@@ -137,18 +137,17 @@
                 y += 10;
 
                 const col1X = 20, col2X = 110;
-                let initialYForStats = y;
-                let yCol1 = initialYForStats;
+                let yCol1 = y, yCol2 = y;
 
                 addText('Performance Summary', col1X, 14, 'bold'); yCol1 += 8;
                 addText(`Questions: ${totalQuestions}`, col1X, 11, 'normal'); yCol1 += 7;
                 addText(`Correct: ${correctCount}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`Partially Correct: 0`, col1X, 11, 'normal'); yCol1 += 7;
                 addText(`Wrong: ${wrongCount}`, col1X, 11, 'normal'); yCol1 += 7;
                 addText(`Not Attempted: ${notAttemptedCount}`, col1X, 11, 'normal'); yCol1 += 7;
                 addText(`Marks for Correct: +${correctMarks}`, col1X, 11, 'normal'); yCol1 += 7;
                 addText(`-ve marking for wrong: -${wrongMarks}`, col1X, 11, 'normal');
 
-                let yCol2 = initialYForStats;
                 addText('Result', col2X, 14, 'bold'); yCol2 += 8;
                 addText(`Marks: ${userScore.toFixed(2)} / ${totalScore.toFixed(2)}`, col2X, 11, 'bold'); yCol2 += 7;
                 addText(`Total Marks: ${totalScore.toFixed(2)}`, col2X, 11, 'normal'); yCol2 += 7;
@@ -164,7 +163,7 @@
                 y += 8;
 
                 for (let i = 1; i <= totalQuestions; i++) {
-                    if (y > pageHeight - 15) {
+                    if (y > pageHeight - 25) { // Adjusted for legend space
                         pdf.addPage();
                         y = 15;
                         addText('OMR Analysis (continued)', 15, 16, 'bold');
@@ -221,6 +220,22 @@
                     pdf.setTextColor(0, 0, 0);
                     y += 10;
                 }
+
+                // Add legend at the bottom
+                if (y > pageHeight - 35) { // Check if space for legend
+                    pdf.addPage();
+                    y = 15;
+                }
+                
+                pdf.line(15, y, pageWidth-15, y);
+                y += 8;
+
+                addText('How to cross check answers?', 15, 12, 'bold');
+                y += 7;
+                pdf.setFontSize(10).setFont(undefined, 'normal');
+                pdf.text('Options with a green filled circle are correctly chosen options.', 15, y); y += 6;
+                pdf.text('Options with a red filled circle are incorrectly chosen options.', 15, y); y += 6;
+                pdf.text('Options with a green border are correct options that were not chosen.', 15, y);
 
                 pdf.save(`${settings.title}_Report.pdf`);
                 setTimeout(() => {
