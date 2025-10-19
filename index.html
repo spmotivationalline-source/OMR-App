@@ -8,27 +8,26 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
-        /* Mobile-first adjustments for a compact view */
         .app-container { 
             width: 100%; 
             max-width: 450px; 
-            margin: 0.5rem auto; /* Reduced margin */
+            margin: 0.5rem auto;
             display: flex; 
             flex-direction: column; 
-            gap: 0.75rem; /* Reduced gap */
+            gap: 0.75rem;
             padding: 0 0.5rem;
         }
         .card { 
             background: white; 
-            border-radius: 1rem; /* Smaller radius */
+            border-radius: 1rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            padding: 0.75rem; /* Reduced padding */
+            padding: 0.75rem;
             border: 1px solid #e5e7eb; 
         }
         .header-bar { 
             background-color: #1E90FF; 
             color: white; 
-            padding: 0.5rem 0.75rem; /* Reduced padding */
+            padding: 0.5rem 0.75rem;
             display: flex; 
             align-items: center; 
             justify-content: space-between; 
@@ -43,13 +42,13 @@
         }
         .hamburger-btn { cursor: pointer; }
         .stat-card { 
-            padding: 0.5rem; /* Reduced padding */
+            padding: 0.5rem;
             text-align: center; 
             flex: 1; 
         }
         .chart-container { 
             position: relative; 
-            height: 160px; /* Reduced height */
+            height: 160px;
             width: 100%; 
         }
         /* Modal and Side Menu Styles */
@@ -110,23 +109,91 @@
         <div class="p-5 border-b">
             <h2 class="text-2xl font-bold text-gray-800">OMR App Menu</h2>
         </div>
-        <ul class="p-5 space-y-4 text-gray-700 font-semibold">
-            <li class="hover:text-blue-600 cursor-pointer">Profile</li>
-            <li class="hover:text-blue-600 cursor-pointer">Settings</li>
-            <li class="hover:text-blue-600 cursor-pointer">About Us</li>
-            <li class="hover:text-blue-600 cursor-pointer">Logout</li>
+        <ul class="p-5 space-y-1 text-gray-700 font-semibold">
+            <li id="profile-btn" class="p-2 rounded-md hover:bg-gray-100 hover:text-blue-600 cursor-pointer">Profile</li>
+            <li id="settings-btn" class="p-2 rounded-md hover:bg-gray-100 hover:text-blue-600 cursor-pointer">Settings</li>
+            <li id="about-us-btn" class="p-2 rounded-md hover:bg-gray-100 hover:text-blue-600 cursor-pointer">About Us</li>
+            <li id="share-app-btn" class="p-2 rounded-md hover:bg-gray-100 hover:text-blue-600 cursor-pointer">Share App</li>
+            <li id="contact-us-btn" class="p-2 rounded-md hover:bg-gray-100 hover:text-blue-600 cursor-pointer">Need Help? Contact Us</li>
         </ul>
     </div>
 
+    <!-- All Modals -->
     <!-- Recent Exams Modal -->
     <div id="recent-exams-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 hidden z-50">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center p-4 border-b">
                 <h2 class="text-xl font-bold text-gray-800">Recent Exams History</h2>
-                <button id="close-recent-modal-btn" class="text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
+                <button class="close-modal-btn text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
             </div>
-            <div id="recent-exams-list" class="overflow-y-auto p-4 space-y-2">
-                <!-- List will be populated by JavaScript -->
+            <div id="recent-exams-list" class="overflow-y-auto p-4 space-y-2"></div>
+        </div>
+    </div>
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-sm flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-bold text-gray-800">Profile</h2>
+                <button class="close-modal-btn text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="p-6 text-center">
+                <img src="https://placehold.co/128x128/1E90FF/FFFFFF?text=MI" alt="Profile Picture" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-gray-200">
+                <h3 class="text-2xl font-bold text-gray-800">Md Imteyaj</h3>
+                <p class="text-gray-500">Ambitious Student</p>
+                <div class="mt-6 text-left space-y-2">
+                    <p><span class="font-semibold">Exams Taken:</span> <span id="profile-exams-taken">0</span></p>
+                    <p><span class="font-semibold">Overall Accuracy:</span> <span id="profile-avg-accuracy">0.0%</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-sm flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-bold text-gray-800">Settings</h2>
+                <button class="close-modal-btn text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex justify-between items-center"><span class="font-semibold text-gray-700">Dark Mode</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" value="" class="sr-only peer"><div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></div>
+                <div class="flex justify-between items-center"><span class="font-semibold text-gray-700">Timer Sound Effects</span><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" value="" class="sr-only peer" checked><div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></div>
+            </div>
+        </div>
+    </div>
+    <!-- About Us Modal -->
+    <div id="about-us-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-sm flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-bold text-gray-800">About OMR App</h2>
+                <button class="close-modal-btn text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="p-6 text-gray-700 space-y-3">
+                <p>This OMR sheet application is designed to help students practice for their exams in a realistic environment.</p>
+                <p>Easily create custom exams, track your performance with detailed analytics, and improve your speed and accuracy.</p>
+                <p class="pt-4 font-semibold">Created with ❤️ by Md Imteyaj.</p>
+            </div>
+        </div>
+    </div>
+    <!-- Contact Us Modal -->
+    <div id="contact-us-modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-sm flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-xl font-bold text-gray-800">Need Help?</h2>
+                <button class="close-modal-btn text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div class="p-6 text-gray-700 space-y-4">
+                <p>If you encounter any issues or have any questions about the app, feel free to reach out. We're here to help you!</p>
+                <div>
+                    <h3 class="font-semibold mb-2">Contact Information:</h3>
+                    <div class="flex items-center space-x-3">
+                        <svg class="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.487 5.235 3.487 8.413 0 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.457l-6.354 1.697zM5.423 18.16l.354.212c1.52 1.04 3.375 1.623 5.353 1.622 5.462 0 9.904-4.443 9.904-9.904s-4.442-9.904-9.904-9.904c-5.462 0-9.903 4.443-9.903 9.904 0 2.01.595 3.918 1.68 5.488l.245.368-1.137 4.162 4.26-.001z"/></svg>
+                        <a href="https://wa.me/917352356098" target="_blank" class="text-blue-600 hover:underline">+91 7352356098</a>
+                    </div>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        <a href="mailto:mdimteyaj091@gmail.com" class="text-blue-600 hover:underline">mdimteyaj091@gmail.com</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -137,26 +204,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             const pastExams = JSON.parse(localStorage.getItem('pastExams')) || [];
             
+            // Charts and main page stats
             if (pastExams.length > 0) {
                 document.getElementById('chart1-placeholder').style.display = 'none';
                 document.getElementById('chart2-placeholder').style.display = 'none';
 
                 const latestExam = pastExams[0];
                 const { settings, userAnswers, answerKey } = latestExam;
-
-                const totalQuestions = parseInt(settings.totalQuestions);
-                const correctMarks = parseFloat(settings.correctMarks);
-                const wrongMarks = parseFloat(settings.wrongMarks);
-
+                const totalQuestions = parseInt(settings.totalQuestions), correctMarks = parseFloat(settings.correctMarks), wrongMarks = parseFloat(settings.wrongMarks);
                 let correctCount = 0, wrongCount = 0, notAttemptedCount = 0;
                 for (let i = 1; i <= totalQuestions; i++) {
                     if (!userAnswers[i]) notAttemptedCount++;
                     else if (userAnswers[i] === answerKey[i]) correctCount++;
                     else wrongCount++;
                 }
-
-                const userScore = (correctCount * correctMarks) - (wrongCount * wrongMarks);
-                const totalScore = totalQuestions * correctMarks;
+                const userScore = (correctCount * correctMarks) - (wrongCount * wrongMarks), totalScore = totalQuestions * correctMarks;
                 const attemptedCount = correctCount + wrongCount;
                 const percentage = totalScore > 0 ? ((userScore / totalScore) * 100) : 0;
                 const accuracy = attemptedCount > 0 ? ((correctCount / attemptedCount) * 100) : 0;
@@ -164,92 +226,93 @@
                 document.getElementById('latest-percentage').textContent = `${percentage.toFixed(1)}%`;
                 document.getElementById('latest-accuracy').textContent = `${accuracy.toFixed(1)}%`;
 
-                const breakdownCtx = document.getElementById('exam-breakdown-chart').getContext('2d');
-                new Chart(breakdownCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Correct', 'Wrong', 'Not Attempted'],
-                        datasets: [{
-                            data: [correctCount, wrongCount, notAttemptedCount],
-                            backgroundColor: ['#22c55e', '#ef4444', '#a8a29e'],
-                            borderColor: ['#ffffff'],
-                            borderWidth: 2
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                new Chart(document.getElementById('exam-breakdown-chart').getContext('2d'), { type: 'doughnut', data: { labels: ['Correct', 'Wrong', 'Not Attempted'], datasets: [{ data: [correctCount, wrongCount, notAttemptedCount], backgroundColor: ['#22c55e', '#ef4444', '#a8a29e'], borderColor: ['#ffffff'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+                new Chart(document.getElementById('score-analysis-chart').getContext('2d'), { type: 'bar', data: { labels: ['Your Score', 'Total Marks'], datasets: [{ label: 'Marks', data: [userScore.toFixed(2), totalScore.toFixed(2)], backgroundColor: ['#3b82f6', '#e5e7eb'], borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+            
+                // Update profile stats
+                let totalAccuracySum = 0;
+                pastExams.forEach(exam => {
+                    const attempted = Object.values(exam.userAnswers).filter(ans => ans !== null).length;
+                    let correct = 0;
+                    for (let i = 1; i <= exam.settings.totalQuestions; i++) {
+                        if (exam.userAnswers[i] && exam.userAnswers[i] === exam.answerKey[i]) correct++;
+                    }
+                    if(attempted > 0) totalAccuracySum += (correct / attempted) * 100;
                 });
-                
-                const scoreCtx = document.getElementById('score-analysis-chart').getContext('2d');
-                new Chart(scoreCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Your Score', 'Total Marks'],
-                        datasets: [{
-                            label: 'Marks',
-                            data: [userScore.toFixed(2), totalScore.toFixed(2)],
-                            backgroundColor: ['#3b82f6', '#e5e7eb'],
-                            borderRadius: 4
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
-                });
+                document.getElementById('profile-exams-taken').textContent = pastExams.length;
+                document.getElementById('profile-avg-accuracy').textContent = `${(totalAccuracySum / pastExams.length).toFixed(1)}%`;
 
             } else {
                 document.getElementById('chart1-container').style.display = 'none';
                 document.getElementById('chart2-container').style.display = 'none';
             }
 
+            // All menu and modal logic
             const hamburgerBtn = document.getElementById('hamburger-btn');
-            const recentExamsBtn = document.getElementById('recent-exams-btn');
             const sideMenu = document.getElementById('side-menu');
-            const recentExamsModal = document.getElementById('recent-exams-modal');
-            const closeRecentModalBtn = document.getElementById('close-recent-modal-btn');
             const overlay = document.getElementById('overlay');
-
-            function openMenu(element) {
-                overlay.classList.remove('hidden');
-                element.classList.remove('hidden');
-            }
+            const allModals = document.querySelectorAll('.modal');
+            
+            const menuButtons = {
+                'recent-exams-btn': document.getElementById('recent-exams-modal'),
+                'profile-btn': document.getElementById('profile-modal'),
+                'settings-btn': document.getElementById('settings-modal'),
+                'about-us-btn': document.getElementById('about-us-modal'),
+                'contact-us-btn': document.getElementById('contact-us-modal')
+            };
 
             function closeAll() {
                 overlay.classList.add('hidden');
                 sideMenu.classList.add('-translate-x-full');
-                recentExamsModal.classList.add('hidden');
+                allModals.forEach(modal => modal.classList.add('hidden'));
             }
-            
+
             hamburgerBtn.addEventListener('click', () => {
                 overlay.classList.remove('hidden');
                 sideMenu.classList.remove('-translate-x-full');
             });
-
-            recentExamsBtn.addEventListener('click', () => {
-                populateRecentExams();
-                openMenu(recentExamsModal);
+            
+            Object.keys(menuButtons).forEach(btnId => {
+                document.getElementById(btnId).addEventListener('click', () => {
+                    if (btnId === 'recent-exams-btn') populateRecentExams();
+                    closeAll();
+                    overlay.classList.remove('hidden');
+                    menuButtons[btnId].classList.remove('hidden');
+                });
             });
 
-            closeRecentModalBtn.addEventListener('click', closeAll);
+            document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', closeAll));
             overlay.addEventListener('click', closeAll);
+            
+            // Share App button
+            document.getElementById('share-app-btn').addEventListener('click', async () => {
+                const shareData = {
+                    title: 'OMR Practice App',
+                    text: 'Check out this awesome OMR sheet app to practice for your exams!',
+                    url: window.location.href
+                };
+                try {
+                    if (navigator.share) {
+                        await navigator.share(shareData);
+                    } else {
+                        alert('Share feature is not supported on your browser. Please copy the URL.');
+                    }
+                } catch (err) {
+                    console.error("Share failed:", err);
+                }
+            });
 
             function populateRecentExams() {
-                const pastExamsHistory = JSON.parse(localStorage.getItem('pastExams')) || [];
                 const listContainer = document.getElementById('recent-exams-list');
                 listContainer.innerHTML = '';
-
-                if (pastExamsHistory.length === 0) {
+                if (pastExams.length === 0) {
                     listContainer.innerHTML = `<p class="text-center text-gray-500">No exam history found.</p>`;
                     return;
                 }
-
-                pastExamsHistory.forEach(examData => {
+                pastExams.forEach(examData => {
                     const item = document.createElement('div');
                     item.className = 'recent-exam-item flex justify-between items-center';
-                    item.innerHTML = `
-                        <div>
-                            <p class="font-bold text-gray-800">${examData.settings.title}</p>
-                            <p class="text-sm text-gray-500">${new Date(examData.id).toLocaleString()}</p>
-                        </div>
-                        <span class="text-blue-500 font-semibold">View &rarr;</span>
-                    `;
+                    item.innerHTML = `<div><p class="font-bold text-gray-800">${examData.settings.title}</p><p class="text-sm text-gray-500">${new Date(examData.id).toLocaleString()}</p></div><span class="text-blue-500 font-semibold">View &rarr;</span>`;
                     item.addEventListener('click', () => {
                         localStorage.setItem('omrSettings', JSON.stringify(examData.settings));
                         localStorage.setItem('userAnswers', JSON.stringify(examData.userAnswers));
