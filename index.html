@@ -5,16 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OMR App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
-        .app-container { width: 100%; max-width: 450px; margin: 1rem auto; display: flex; flex-direction: column; gap: 1rem; }
-        .card { background: white; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); padding: 1rem; border: 1px solid #10B981; }
-        .header-bar { background-color: #1E90FF; color: white; padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
-        .recent-exams-btn { border: 1px solid white; border-radius: 9999px; padding: 0.25rem 0.75rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        /* Mobile-first adjustments for a compact view */
+        .app-container { 
+            width: 100%; 
+            max-width: 450px; 
+            margin: 0.5rem auto; /* Reduced margin */
+            display: flex; 
+            flex-direction: column; 
+            gap: 0.75rem; /* Reduced gap */
+            padding: 0 0.5rem;
+        }
+        .card { 
+            background: white; 
+            border-radius: 1rem; /* Smaller radius */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 0.75rem; /* Reduced padding */
+            border: 1px solid #e5e7eb; 
+        }
+        .header-bar { 
+            background-color: #1E90FF; 
+            color: white; 
+            padding: 0.5rem 0.75rem; /* Reduced padding */
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+        }
+        .recent-exams-btn { 
+            border: 1px solid white; 
+            border-radius: 9999px; 
+            padding: 0.125rem 0.625rem; 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+        }
         .hamburger-btn { cursor: pointer; }
-        .stat-card { padding: 0.75rem; text-align: center; flex: 1; }
-        .past-exam-card { padding: 1rem; border-bottom: 1px solid #e5e7eb; }
-        .past-exam-card:last-child { border-bottom: none; }
+        .stat-card { 
+            padding: 0.5rem; /* Reduced padding */
+            text-align: center; 
+            flex: 1; 
+        }
+        .chart-container { 
+            position: relative; 
+            height: 160px; /* Reduced height */
+            width: 100%; 
+        }
         /* Modal and Side Menu Styles */
         .modal { transition: opacity 0.3s ease; }
         .side-menu { transition: transform 0.3s ease-in-out; }
@@ -27,40 +64,43 @@
     <div class="app-container">
         <header class="card header-bar">
             <div class="flex items-center">
-                <div id="hamburger-btn" class="hamburger-btn space-y-1 mr-4"><div class="w-5 h-0.5 bg-white"></div><div class="w-5 h-0.5 bg-white"></div><div class="w-5 h-0.5 bg-white"></div></div>
-                <h1 class="font-light text-xl">OMR App</h1>
+                <div id="hamburger-btn" class="hamburger-btn space-y-1 mr-3"><div class="w-5 h-0.5 bg-white"></div><div class="w-5 h-0.5 bg-white"></div><div class="w-5 h-0.5 bg-white"></div></div>
+                <h1 class="font-light text-lg">OMR App</h1>
             </div>
             <button id="recent-exams-btn" class="recent-exams-btn">RECENT Exams</button>
         </header>
 
-        <!-- Past Results Card -->
-        <div id="results-container" class="card">
-            <div id="results-placeholder" class="h-24 flex items-center justify-center text-gray-400">
-                <p>Your past exam results will show here.</p>
+        <!-- Chart Card 1: Exam Breakdown -->
+        <div class="card">
+            <h2 class="text-base font-semibold text-gray-700 mb-1 text-center">Latest Exam Breakdown</h2>
+            <div id="chart1-container" class="chart-container">
+                 <canvas id="exam-breakdown-chart"></canvas>
             </div>
-            <div id="results-list" class="divide-y divide-gray-100"></div>
+             <p id="chart1-placeholder" class="h-40 flex items-center justify-center text-gray-400 text-sm text-center">Complete an exam to see the breakdown.</p>
         </div>
         
-        <!-- Chart Card (Placeholder) -->
-        <div class="card flex-grow flex flex-col justify-between">
-            <div class="flex-grow flex items-center justify-center text-gray-400">
-                <p>Performance chart will be displayed here.</p>
+        <!-- Chart Card 2: Score Analysis -->
+        <div class="card">
+            <h2 class="text-base font-semibold text-gray-700 mb-1 text-center">Latest Score Analysis</h2>
+            <div id="chart2-container" class="chart-container">
+                <canvas id="score-analysis-chart"></canvas>
             </div>
+            <p id="chart2-placeholder" class="h-40 flex items-center justify-center text-gray-400 text-sm text-center">Complete an exam to see your score.</p>
         </div>
 
-        <!-- Average Stats Row -->
+        <!-- Latest Exam Stats Row -->
         <div class="flex space-x-2">
             <div class="card stat-card">
-                <p id="avg-percentage" class="text-lg font-bold text-gray-800">0.0%</p>
-                <p class="text-xs text-gray-500">Avg. Percentage</p>
+                <p id="latest-percentage" class="text-base font-bold text-gray-800">0.0%</p>
+                <p class="text-xs text-gray-500">Percentage</p>
             </div>
             <div class="card stat-card">
-                <p id="avg-accuracy" class="text-lg font-bold text-gray-800">0.0%</p>
-                <p class="text-xs text-gray-500">Avg. Accuracy</p>
+                <p id="latest-accuracy" class="text-base font-bold text-gray-800">0.0%</p>
+                <p class="text-xs text-gray-500">Accuracy</p>
             </div>
         </div>
 
-        <a href="./create-omr.html" class="block text-center bg-[#1E90FF] text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex-shrink-0">
+        <a href="./create-omr.html" class="block text-center bg-[#1E90FF] text-white font-bold py-2.5 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex-shrink-0">
             Start New Exam
         </a>
     </div>
@@ -86,7 +126,7 @@
                 <button id="close-recent-modal-btn" class="text-3xl font-light text-gray-500 hover:text-gray-800">&times;</button>
             </div>
             <div id="recent-exams-list" class="overflow-y-auto p-4 space-y-2">
-                <!-- List JavaScript se aayegi -->
+                <!-- List will be populated by JavaScript -->
             </div>
         </div>
     </div>
@@ -95,25 +135,70 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Summary card ko populate karna
             const pastExams = JSON.parse(localStorage.getItem('pastExams')) || [];
+            
             if (pastExams.length > 0) {
-                document.getElementById('results-placeholder').style.display = 'none';
-                const resultsList = document.getElementById('results-list');
-                let totalPercentage = 0, totalAccuracy = 0;
-                pastExams.forEach(exam => {
-                    totalPercentage += parseFloat(exam.percentage);
-                    totalAccuracy += parseFloat(exam.accuracy);
-                    const examCard = document.createElement('div');
-                    examCard.className = 'past-exam-card';
-                    examCard.innerHTML = `<div class="flex justify-between items-center"><div><h3 class="font-bold text-gray-800">${exam.title}</h3><p class="text-sm text-gray-500">${exam.date}</p></div><div class="text-right"><p class="font-bold text-blue-600">${exam.score} / ${exam.totalScore}</p><p class="text-xs text-green-600">${exam.percentage}%</p></div></div>`;
-                    resultsList.appendChild(examCard);
+                document.getElementById('chart1-placeholder').style.display = 'none';
+                document.getElementById('chart2-placeholder').style.display = 'none';
+
+                const latestExam = pastExams[0];
+                const { settings, userAnswers, answerKey } = latestExam;
+
+                const totalQuestions = parseInt(settings.totalQuestions);
+                const correctMarks = parseFloat(settings.correctMarks);
+                const wrongMarks = parseFloat(settings.wrongMarks);
+
+                let correctCount = 0, wrongCount = 0, notAttemptedCount = 0;
+                for (let i = 1; i <= totalQuestions; i++) {
+                    if (!userAnswers[i]) notAttemptedCount++;
+                    else if (userAnswers[i] === answerKey[i]) correctCount++;
+                    else wrongCount++;
+                }
+
+                const userScore = (correctCount * correctMarks) - (wrongCount * wrongMarks);
+                const totalScore = totalQuestions * correctMarks;
+                const attemptedCount = correctCount + wrongCount;
+                const percentage = totalScore > 0 ? ((userScore / totalScore) * 100) : 0;
+                const accuracy = attemptedCount > 0 ? ((correctCount / attemptedCount) * 100) : 0;
+
+                document.getElementById('latest-percentage').textContent = `${percentage.toFixed(1)}%`;
+                document.getElementById('latest-accuracy').textContent = `${accuracy.toFixed(1)}%`;
+
+                const breakdownCtx = document.getElementById('exam-breakdown-chart').getContext('2d');
+                new Chart(breakdownCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Correct', 'Wrong', 'Not Attempted'],
+                        datasets: [{
+                            data: [correctCount, wrongCount, notAttemptedCount],
+                            backgroundColor: ['#22c55e', '#ef4444', '#a8a29e'],
+                            borderColor: ['#ffffff'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
                 });
-                document.getElementById('avg-percentage').textContent = `${(totalPercentage / pastExams.length).toFixed(1)}%`;
-                document.getElementById('avg-accuracy').textContent = `${(totalAccuracy / pastExams.length).toFixed(1)}%`;
+                
+                const scoreCtx = document.getElementById('score-analysis-chart').getContext('2d');
+                new Chart(scoreCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Your Score', 'Total Marks'],
+                        datasets: [{
+                            label: 'Marks',
+                            data: [userScore.toFixed(2), totalScore.toFixed(2)],
+                            backgroundColor: ['#3b82f6', '#e5e7eb'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                });
+
+            } else {
+                document.getElementById('chart1-container').style.display = 'none';
+                document.getElementById('chart2-container').style.display = 'none';
             }
 
-            // Modal aur Side Menu ke elements
             const hamburgerBtn = document.getElementById('hamburger-btn');
             const recentExamsBtn = document.getElementById('recent-exams-btn');
             const sideMenu = document.getElementById('side-menu');
@@ -121,41 +206,41 @@
             const closeRecentModalBtn = document.getElementById('close-recent-modal-btn');
             const overlay = document.getElementById('overlay');
 
-            // Side Menu Kholna/Band karna
-            hamburgerBtn.addEventListener('click', () => {
+            function openMenu(element) {
                 overlay.classList.remove('hidden');
-                sideMenu.classList.remove('-translate-x-full');
-            });
+                element.classList.remove('hidden');
+            }
 
-            // Recent Exams Modal Kholna
-            recentExamsBtn.addEventListener('click', () => {
-                populateRecentExams();
-                overlay.classList.remove('hidden');
-                recentExamsModal.classList.remove('hidden');
-            });
-
-            // Band karne wale functions
             function closeAll() {
                 overlay.classList.add('hidden');
                 sideMenu.classList.add('-translate-x-full');
                 recentExamsModal.classList.add('hidden');
             }
+            
+            hamburgerBtn.addEventListener('click', () => {
+                overlay.classList.remove('hidden');
+                sideMenu.classList.remove('-translate-x-full');
+            });
+
+            recentExamsBtn.addEventListener('click', () => {
+                populateRecentExams();
+                openMenu(recentExamsModal);
+            });
 
             closeRecentModalBtn.addEventListener('click', closeAll);
             overlay.addEventListener('click', closeAll);
 
-            // Recent Exams ki list banana
             function populateRecentExams() {
-                const fullHistory = JSON.parse(localStorage.getItem('fullExamHistory')) || [];
+                const pastExamsHistory = JSON.parse(localStorage.getItem('pastExams')) || [];
                 const listContainer = document.getElementById('recent-exams-list');
-                listContainer.innerHTML = ''; // Purani list saaf karo
+                listContainer.innerHTML = '';
 
-                if (fullHistory.length === 0) {
+                if (pastExamsHistory.length === 0) {
                     listContainer.innerHTML = `<p class="text-center text-gray-500">No exam history found.</p>`;
                     return;
                 }
 
-                fullHistory.forEach(examData => {
+                pastExamsHistory.forEach(examData => {
                     const item = document.createElement('div');
                     item.className = 'recent-exam-item flex justify-between items-center';
                     item.innerHTML = `
@@ -166,11 +251,10 @@
                         <span class="text-blue-500 font-semibold">View &rarr;</span>
                     `;
                     item.addEventListener('click', () => {
-                        // Data ko current exam ke liye set karo aur analysis page par jao
                         localStorage.setItem('omrSettings', JSON.stringify(examData.settings));
                         localStorage.setItem('userAnswers', JSON.stringify(examData.userAnswers));
                         localStorage.setItem('correctAnswerKey', JSON.stringify(examData.answerKey));
-                        window.location.href = './result-analysis.html';
+                        window.location.href = './result.html';
                     });
                     listContainer.appendChild(item);
                 });
