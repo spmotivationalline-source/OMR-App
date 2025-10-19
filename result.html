@@ -111,136 +111,177 @@
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const pageWidth = pdf.internal.pageSize.getWidth();
-                let y = 15;
+                const margin = 15;
+                let y = margin;
 
-                function addText(text, x, size, style, align = 'left') {
-                    if (y > pageHeight - 20) { // Added more margin at bottom
+                function checkPageBreak() {
+                    if (y > pageHeight - margin) {
                         pdf.addPage();
-                        y = 15;
+                        y = margin;
                     }
-                    pdf.setFontSize(size).setFont(undefined, style);
-                    if (align === 'center') {
-                        const textWidth = pdf.getStringUnitWidth(text) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                        x = (pageWidth - textWidth) / 2;
-                    }
-                    pdf.text(text, x, y);
                 }
-
-                addText(settings.title, 0, 22, 'bold', 'center');
+                
+                // Title and Description
+                pdf.setFontSize(22).setFont(undefined, 'bold');
+                pdf.text(settings.title, pageWidth / 2, y, { align: 'center' });
                 y += 8;
                 if (settings.description) {
-                    addText(settings.description, 0, 12, 'normal', 'center');
+                    pdf.setFontSize(12).setFont(undefined, 'normal');
+                    pdf.text(settings.description, pageWidth / 2, y, { align: 'center' });
                     y += 6;
                 }
-                pdf.setDrawColor(200, 200, 200);
-                pdf.line(15, y, pageWidth - 15, y);
-                y += 10;
-
-                const col1X = 20, col2X = 110;
-                let yCol1 = y, yCol2 = y;
-
-                addText('Performance Summary', col1X, 14, 'bold'); yCol1 += 8;
-                addText(`Questions: ${totalQuestions}`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`Correct: ${correctCount}`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`Partially Correct: 0`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`Wrong: ${wrongCount}`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`Not Attempted: ${notAttemptedCount}`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`Marks for Correct: +${correctMarks}`, col1X, 11, 'normal'); yCol1 += 7;
-                addText(`-ve marking for wrong: -${wrongMarks}`, col1X, 11, 'normal');
-
-                addText('Result', col2X, 14, 'bold'); yCol2 += 8;
-                addText(`Marks: ${userScore.toFixed(2)} / ${totalScore.toFixed(2)}`, col2X, 11, 'bold'); yCol2 += 7;
-                addText(`Total Marks: ${totalScore.toFixed(2)}`, col2X, 11, 'normal'); yCol2 += 7;
-                addText(`Accuracy: ${accuracy.toFixed(2)}%`, col2X, 11, 'normal'); yCol2 += 7;
-                addText(`Percentage: ${percentage.toFixed(2)}%`, col2X, 11, 'normal'); yCol2 += 7;
-                addText(`Duration: ${formattedDuration}`, col2X, 11, 'normal');
                 
-                y = Math.max(yCol1, yCol2) + 5;
-                pdf.line(15, y, pageWidth - 15, y);
+                // First horizontal line
+                y += 2;
+                pdf.setDrawColor(200, 200, 200);
+                pdf.line(margin, y, pageWidth - margin, y);
                 y += 10;
 
-                addText('OMR Analysis', 15, 16, 'bold');
-                y += 8;
+                // Performance Summary
+                const col1X = margin + 5;
+                const col2X = pageWidth / 2 + 10;
+                let y1 = y, y2 = y;
+                const lineSpacing = 7;
+                pdf.setFontSize(11).setFont(undefined, 'normal');
+                
+                pdf.text(`Questions: ${totalQuestions}`, col1X, y1); y1 += lineSpacing;
+                pdf.text(`Correct: ${correctCount}`, col1X, y1); y1 += lineSpacing;
+                pdf.text(`Partially Correct: 0`, col1X, y1); y1 += lineSpacing;
+                pdf.text(`Wrong: ${wrongCount}`, col1X, y1); y1 += lineSpacing;
+                pdf.text(`Not Attempted: ${notAttemptedCount}`, col1X, y1); y1 += lineSpacing;
+                pdf.text(`Marks for correct: +${correctMarks}`, col1X, y1);
+                
+                pdf.text(`Marks: ${userScore.toFixed(2)}`, col2X, y2); y2 += lineSpacing;
+                pdf.text(`Total Marks: ${totalScore.toFixed(2)}`, col2X, y2); y2 += lineSpacing;
+                pdf.text(`Accuracy: ${accuracy.toFixed(2)}%`, col2X, y2); y2 += lineSpacing;
+                pdf.text(`Percentage: ${percentage.toFixed(2)}%`, col2X, y2); y2 += lineSpacing;
+                pdf.text(`Duration: ${formattedDuration}`, col2X, y2); y2 += lineSpacing;
+                pdf.text(`-ve marking for wrong answer: -${wrongMarks}`, col2X, y2);
+
+                y = Math.max(y1, y2) + 5;
+
+                // Second horizontal line
+                pdf.line(margin, y, pageWidth - margin, y);
+                y += 10;
+                
+                // OMR Analysis
+                pdf.setFontSize(16).setFont(undefined, 'bold');
+                pdf.text('OMR Analysis', margin, y);
+                y += 10;
 
                 for (let i = 1; i <= totalQuestions; i++) {
-                    if (y > pageHeight - 25) { // Adjusted for legend space
-                        pdf.addPage();
-                        y = 15;
-                        addText('OMR Analysis (continued)', 15, 16, 'bold');
-                        y += 8;
-                    }
-
+                    checkPageBreak();
                     const userAnswer = userAnswers[i];
                     const correctAnswer = answerKey[i];
                     const optionChars = ['A', 'B', 'C', 'D', 'E'];
                     let marksText = '';
-                    
-                    if (userAnswer === null) {
-                        marksText = '0';
-                        pdf.setFillColor(243, 244, 246); // gray-100
-                        pdf.rect(15, y - 5, pageWidth - 30, 9, 'F');
-                    } else if (userAnswer === correctAnswer) {
-                        marksText = `+${correctMarks}`;
-                    } else {
-                        marksText = `-${wrongMarks}`;
-                    }
 
                     pdf.setFontSize(11).setFont(undefined, 'bold');
-                    pdf.text(`${i}.`, 18, y);
-
-                    let optionX = 35;
+                    pdf.text(`${i}.`, margin + 3, y);
+                    
+                    let optionX = margin + 20;
                     for (let j = 0; j < settings.options; j++) {
                         const optChar = optionChars[j];
                         pdf.setLineWidth(0.3);
-                        pdf.setDrawColor(150, 150, 150);
+                        pdf.setDrawColor(100, 100, 100);
                         pdf.setTextColor(0, 0, 0);
-                        let isFilled = false;
-                        
-                        if (optChar === userAnswer) {
-                            if (userAnswer === correctAnswer) pdf.setFillColor(34, 197, 94); // green-500
-                            else pdf.setFillColor(239, 68, 68); // red-500
-                            pdf.setTextColor(255, 255, 255);
-                            isFilled = true;
-                        } else if (optChar === correctAnswer) {
-                            pdf.setLineWidth(0.8);
-                            pdf.setDrawColor(34, 197, 94); // green-500
-                        }
+                        let fillStyle = 'D'; // D for Draw
 
-                        pdf.circle(optionX + 2.5, y - 1.5, 3, isFilled ? 'FD' : 'D');
+                        if (userAnswer === null) { // Not Attempted
+                           if (optChar === correctAnswer) {
+                                pdf.setFillColor(156, 163, 175); // gray-400
+                                fillStyle = 'FD'; // Fill and Draw
+                           }
+                        } else if (optChar === userAnswer) { // Attempted
+                            if (userAnswer === correctAnswer) { // Correct
+                                pdf.setFillColor(34, 197, 94); // green-500
+                            } else { // Wrong
+                                pdf.setFillColor(239, 68, 68); // red-500
+                            }
+                            fillStyle = 'FD';
+                            pdf.setTextColor(255, 255, 255);
+                        } else if (userAnswer !== correctAnswer && optChar === correctAnswer) { // Correct answer when user was wrong
+                            pdf.setFillColor(209, 213, 219); // gray-300
+                            fillStyle = 'FD';
+                        }
+                        
+                        pdf.circle(optionX + 2.5, y - 1.5, 3, fillStyle);
                         pdf.text(optChar, optionX + 1.5, y);
                         optionX += 12;
                     }
                     
-                    pdf.setFontSize(11).setFont(undefined, 'bold');
-                    if (marksText.startsWith('+')) pdf.setTextColor(22, 163, 74); // green-600
-                    else if (marksText.startsWith('-')) pdf.setTextColor(220, 38, 38); // red-600
-                    else pdf.setTextColor(107, 114, 128); // gray-500
-                    
-                    pdf.text(marksText, pageWidth - 20, y, { align: 'right' });
-                    pdf.setTextColor(0, 0, 0);
                     y += 10;
                 }
 
-                // Add legend at the bottom
-                if (y > pageHeight - 35) { // Check if space for legend
-                    pdf.addPage();
-                    y = 15;
-                }
-                
-                pdf.line(15, y, pageWidth-15, y);
+                // Third horizontal line
+                checkPageBreak();
+                y += 5;
+                pdf.line(margin, y, pageWidth - margin, y);
                 y += 8;
 
-                addText('How to cross check answers?', 15, 12, 'bold');
+                // Legend
+                checkPageBreak();
+                pdf.setFontSize(12).setFont(undefined, 'bold');
+                pdf.text('How to cross check answers?', margin, y);
                 y += 7;
+                
                 pdf.setFontSize(10).setFont(undefined, 'normal');
-                pdf.text('Options with a green filled circle are correctly chosen options.', 15, y); y += 6;
-                pdf.text('Options with a red filled circle are incorrectly chosen options.', 15, y); y += 6;
-                pdf.text('Options with a green border are correct options that were not chosen.', 15, y);
+                
+                const legendText1_1 = 'Serial Number with ';
+                const legendText1_2 = 'red';
+                const legendText1_3 = ' color is marked for review';
+                let textWidth = pdf.getStringUnitWidth(legendText1_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.text(legendText1_1, margin, y);
+                pdf.setTextColor(255, 0, 0);
+                pdf.text(legendText1_2, margin + textWidth, y);
+                textWidth += pdf.getStringUnitWidth(legendText1_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(legendText1_3, margin + textWidth, y);
+                y += 6;
+
+                const legendText2_1 = 'Options with ';
+                const legendText2_2 = 'green';
+                const legendText2_3 = ' color is correct chosen option';
+                textWidth = pdf.getStringUnitWidth(legendText2_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.text(legendText2_1, margin, y);
+                pdf.setTextColor(0, 128, 0);
+                pdf.text(legendText2_2, margin + textWidth, y);
+                textWidth += pdf.getStringUnitWidth(legendText2_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(legendText2_3, margin + textWidth, y);
+                y += 6;
+
+                const legendText3_1 = 'Options with ';
+                const legendText3_2 = 'red';
+                const legendText3_3 = ' color is incorrect chosen option';
+                textWidth = pdf.getStringUnitWidth(legendText3_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.text(legendText3_1, margin, y);
+                pdf.setTextColor(255, 0, 0);
+                pdf.text(legendText3_2, margin + textWidth, y);
+                textWidth += pdf.getStringUnitWidth(legendText3_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(legendText3_3, margin + textWidth, y);
+                y += 6;
+
+                const legendText4_1 = 'Options with ';
+                const legendText4_2 = 'grey';
+                const legendText4_3 = ' color is correct option but not chosen';
+                textWidth = pdf.getStringUnitWidth(legendText4_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.text(legendText4_1, margin, y);
+                pdf.setTextColor(128, 128, 128);
+                pdf.text(legendText4_2, margin + textWidth, y);
+                textWidth += pdf.getStringUnitWidth(legendText4_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(legendText4_3, margin + textWidth, y);
+
 
                 pdf.save(`${settings.title}_Report.pdf`);
                 setTimeout(() => {
+                    pdfBtn.querySelector('.btn-text').style.display = 'block';
+                    pdfBtn.querySelector('.loader').style.display = 'none';
+                    pdfBtn.disabled = false;
                     window.location.href = './index.html';
-                }, 500);
+                }, 1000);
             }
         });
     </script>
