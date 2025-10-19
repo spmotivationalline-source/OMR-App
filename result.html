@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Performance Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
@@ -41,7 +42,27 @@
         </div>
     </div>
 
+    <!-- PDF Preview Modal -->
+    <div id="pdf-preview-container" class="fixed inset-0 bg-gray-200 z-50 hidden">
+        <header class="bg-white shadow-md p-3 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button id="back-to-report-btn" class="text-gray-600 hover:text-gray-900" title="Back to Report">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <h2 class="text-lg font-bold text-gray-800">Your Report</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                 <a href="./index.html" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 text-sm">Go to Home</a>
+                <button id="download-pdf-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm">Download PDF</button>
+            </div>
+        </header>
+        <main class="w-full h-[calc(100vh-60px)]">
+            <iframe id="pdf-viewer" class="w-full h-full border-0"></iframe>
+        </main>
+    </div>
+
     <script>
+        window.jsPDF = window.jspdf.jsPDF;
         document.addEventListener('DOMContentLoaded', () => {
             const settings = JSON.parse(localStorage.getItem('omrSettings'));
             const userAnswers = JSON.parse(localStorage.getItem('userAnswers'));
@@ -77,7 +98,6 @@
                 examDurationSeconds = totalDuration - (parseInt(timeTaken) + 1);
                 if(examDurationSeconds < 0) examDurationSeconds = 0;
             }
-
             const dur_hr = String(Math.floor(examDurationSeconds / 3600)).padStart(2, '0');
             const dur_min = String(Math.floor((examDurationSeconds % 3600) / 60)).padStart(2, '0');
             const dur_sec = String(examDurationSeconds % 60).padStart(2, '0');
@@ -92,197 +112,102 @@
             document.getElementById('accuracy-val').textContent = `${accuracy.toFixed(2)}%`;
             document.getElementById('percentage-val').textContent = `${percentage.toFixed(2)}%`;
             document.getElementById('duration-val').textContent = formattedDuration;
-            
+
             const currentExamData = { id: Date.now(), settings, userAnswers, answerKey };
             let pastExams = JSON.parse(localStorage.getItem('pastExams')) || [];
-            pastExams.unshift(currentExamData);
-            localStorage.setItem('pastExams', JSON.stringify(pastExams));
+            if (!pastExams.some(exam => exam.id === currentExamData.id)) {
+                pastExams.unshift(currentExamData);
+                localStorage.setItem('pastExams', JSON.stringify(pastExams));
+            }
 
-            document.getElementById('share-btn').addEventListener('click', () => alert('Share functionality will be implemented in the final app.'));
-            document.getElementById('pdf-btn').addEventListener('click', generatePDF);
+            // New PDF Preview Logic
+            let generatedPdf = null;
+            const pdfBtn = document.getElementById('pdf-btn');
+            const pdfPreviewContainer = document.getElementById('pdf-preview-container');
+            const reportContainer = document.querySelector('.report-container');
+            const backToReportBtn = document.getElementById('back-to-report-btn');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            const pdfViewer = document.getElementById('pdf-viewer');
 
-            function generatePDF() {
-                const pdfBtn = document.getElementById('pdf-btn');
+            pdfBtn.addEventListener('click', showPdfPreview);
+            backToReportBtn.addEventListener('click', () => {
+                pdfPreviewContainer.classList.add('hidden');
+                reportContainer.style.display = 'block'; // Changed to block from flex
+            });
+            downloadPdfBtn.addEventListener('click', () => {
+                if (generatedPdf) {
+                    generatedPdf.save(`${settings.title}_Report.pdf`);
+                }
+            });
+
+            function showPdfPreview() {
                 pdfBtn.querySelector('.btn-text').style.display = 'none';
                 pdfBtn.querySelector('.loader').style.display = 'block';
                 pdfBtn.disabled = true;
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const margin = 15;
-                let y = margin;
-
-                function checkPageBreak() {
-                    if (y > pageHeight - margin) {
-                        pdf.addPage();
-                        y = margin;
-                    }
-                }
-                
-                // Title and Description
-                pdf.setFontSize(22).setFont(undefined, 'bold');
-                pdf.text(settings.title, pageWidth / 2, y, { align: 'center' });
-                y += 8;
-                if (settings.description) {
-                    pdf.setFontSize(12).setFont(undefined, 'normal');
-                    pdf.text(settings.description, pageWidth / 2, y, { align: 'center' });
-                    y += 6;
-                }
-                
-                // First horizontal line
-                y += 2;
-                pdf.setDrawColor(200, 200, 200);
-                pdf.line(margin, y, pageWidth - margin, y);
-                y += 10;
-
-                // Performance Summary
-                const col1X = margin + 5;
-                const col2X = pageWidth / 2 + 10;
-                let y1 = y, y2 = y;
-                const lineSpacing = 7;
-                pdf.setFontSize(11).setFont(undefined, 'normal');
-                
-                pdf.text(`Questions: ${totalQuestions}`, col1X, y1); y1 += lineSpacing;
-                pdf.text(`Correct: ${correctCount}`, col1X, y1); y1 += lineSpacing;
-                pdf.text(`Partially Correct: 0`, col1X, y1); y1 += lineSpacing;
-                pdf.text(`Wrong: ${wrongCount}`, col1X, y1); y1 += lineSpacing;
-                pdf.text(`Not Attempted: ${notAttemptedCount}`, col1X, y1); y1 += lineSpacing;
-                pdf.text(`Marks for correct: +${correctMarks}`, col1X, y1);
-                
-                pdf.text(`Marks: ${userScore.toFixed(2)}`, col2X, y2); y2 += lineSpacing;
-                pdf.text(`Total Marks: ${totalScore.toFixed(2)}`, col2X, y2); y2 += lineSpacing;
-                pdf.text(`Accuracy: ${accuracy.toFixed(2)}%`, col2X, y2); y2 += lineSpacing;
-                pdf.text(`Percentage: ${percentage.toFixed(2)}%`, col2X, y2); y2 += lineSpacing;
-                pdf.text(`Duration: ${formattedDuration}`, col2X, y2); y2 += lineSpacing;
-                pdf.text(`-ve marking for wrong answer: -${wrongMarks}`, col2X, y2);
-
-                y = Math.max(y1, y2) + 5;
-
-                // Second horizontal line
-                pdf.line(margin, y, pageWidth - margin, y);
-                y += 10;
-                
-                // OMR Analysis
-                pdf.setFontSize(16).setFont(undefined, 'bold');
-                pdf.text('OMR Analysis', margin, y);
-                y += 10;
-
-                for (let i = 1; i <= totalQuestions; i++) {
-                    checkPageBreak();
-                    const userAnswer = userAnswers[i];
-                    const correctAnswer = answerKey[i];
-                    const optionChars = ['A', 'B', 'C', 'D', 'E'];
-                    let marksText = '';
-
-                    pdf.setFontSize(11).setFont(undefined, 'bold');
-                    pdf.text(`${i}.`, margin + 3, y);
-                    
-                    let optionX = margin + 20;
-                    for (let j = 0; j < settings.options; j++) {
-                        const optChar = optionChars[j];
-                        pdf.setLineWidth(0.3);
-                        pdf.setDrawColor(100, 100, 100);
-                        pdf.setTextColor(0, 0, 0);
-                        let fillStyle = 'D'; // D for Draw
-
-                        if (userAnswer === null) { // Not Attempted
-                           if (optChar === correctAnswer) {
-                                pdf.setFillColor(156, 163, 175); // gray-400
-                                fillStyle = 'FD'; // Fill and Draw
-                           }
-                        } else if (optChar === userAnswer) { // Attempted
-                            if (userAnswer === correctAnswer) { // Correct
-                                pdf.setFillColor(34, 197, 94); // green-500
-                            } else { // Wrong
-                                pdf.setFillColor(239, 68, 68); // red-500
-                            }
-                            fillStyle = 'FD';
-                            pdf.setTextColor(255, 255, 255);
-                        } else if (userAnswer !== correctAnswer && optChar === correctAnswer) { // Correct answer when user was wrong
-                            pdf.setFillColor(209, 213, 219); // gray-300
-                            fillStyle = 'FD';
-                        }
-                        
-                        pdf.circle(optionX + 2.5, y - 1.5, 3, fillStyle);
-                        pdf.text(optChar, optionX + 1.5, y);
-                        optionX += 12;
-                    }
-                    
-                    y += 10;
-                }
-
-                // Third horizontal line
-                checkPageBreak();
-                y += 5;
-                pdf.line(margin, y, pageWidth - margin, y);
-                y += 8;
-
-                // Legend
-                checkPageBreak();
-                pdf.setFontSize(12).setFont(undefined, 'bold');
-                pdf.text('How to cross check answers?', margin, y);
-                y += 7;
-                
-                pdf.setFontSize(10).setFont(undefined, 'normal');
-                
-                const legendText1_1 = 'Serial Number with ';
-                const legendText1_2 = 'red';
-                const legendText1_3 = ' color is marked for review';
-                let textWidth = pdf.getStringUnitWidth(legendText1_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.text(legendText1_1, margin, y);
-                pdf.setTextColor(255, 0, 0);
-                pdf.text(legendText1_2, margin + textWidth, y);
-                textWidth += pdf.getStringUnitWidth(legendText1_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.setTextColor(0, 0, 0);
-                pdf.text(legendText1_3, margin + textWidth, y);
-                y += 6;
-
-                const legendText2_1 = 'Options with ';
-                const legendText2_2 = 'green';
-                const legendText2_3 = ' color is correct chosen option';
-                textWidth = pdf.getStringUnitWidth(legendText2_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.text(legendText2_1, margin, y);
-                pdf.setTextColor(0, 128, 0);
-                pdf.text(legendText2_2, margin + textWidth, y);
-                textWidth += pdf.getStringUnitWidth(legendText2_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.setTextColor(0, 0, 0);
-                pdf.text(legendText2_3, margin + textWidth, y);
-                y += 6;
-
-                const legendText3_1 = 'Options with ';
-                const legendText3_2 = 'red';
-                const legendText3_3 = ' color is incorrect chosen option';
-                textWidth = pdf.getStringUnitWidth(legendText3_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.text(legendText3_1, margin, y);
-                pdf.setTextColor(255, 0, 0);
-                pdf.text(legendText3_2, margin + textWidth, y);
-                textWidth += pdf.getStringUnitWidth(legendText3_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.setTextColor(0, 0, 0);
-                pdf.text(legendText3_3, margin + textWidth, y);
-                y += 6;
-
-                const legendText4_1 = 'Options with ';
-                const legendText4_2 = 'grey';
-                const legendText4_3 = ' color is correct option but not chosen';
-                textWidth = pdf.getStringUnitWidth(legendText4_1) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.text(legendText4_1, margin, y);
-                pdf.setTextColor(128, 128, 128);
-                pdf.text(legendText4_2, margin + textWidth, y);
-                textWidth += pdf.getStringUnitWidth(legendText4_2) * pdf.getFontSize() / pdf.internal.scaleFactor;
-                pdf.setTextColor(0, 0, 0);
-                pdf.text(legendText4_3, margin + textWidth, y);
-
-
-                pdf.save(`${settings.title}_Report.pdf`);
                 setTimeout(() => {
-                    pdfBtn.querySelector('.btn-text').style.display = 'block';
-                    pdfBtn.querySelector('.loader').style.display = 'none';
-                    pdfBtn.disabled = false;
-                    window.location.href = './index.html';
-                }, 1000);
+                    let analysisHTML = '';
+                    const optionChars = ['A', 'B', 'C', 'D', 'E'];
+                    for (let i = 1; i <= totalQuestions; i++) {
+                        const userAnswer = userAnswers[i], correctAnswer = answerKey[i];
+                        let optionsHTML = '';
+                        for (let j = 0; j < settings.options; j++) {
+                            const optChar = optionChars[j];
+                            let circleStyle = 'border: 1px solid #999; color: #333;';
+                            if (userAnswer === null && optChar === correctAnswer) {
+                                circleStyle = 'background-color: #d1d5db; color: #333; border: 1px solid #999;'; // Not attempted, correct answer
+                            } else if (optChar === userAnswer && userAnswer === correctAnswer) {
+                                circleStyle = 'background-color: #22c55e; color: white; border-color: #22c55e;';
+                            } else if (optChar === userAnswer && userAnswer !== correctAnswer) {
+                                circleStyle = 'background-color: #ef4444; color: white; border-color: #ef4444;';
+                            }
+                            optionsHTML += `<span style="width: 20px; height: 20px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; margin: 0 2px; font-size: 10px; ${circleStyle}">${optChar}</span>`;
+                        }
+                        analysisHTML += `<div style="display: flex; align-items: center; padding: 4px; border-radius: 4px; break-inside: avoid;"><span style="font-weight: bold; margin-right: 8px; min-width: 25px;">${i}.</span> ${optionsHTML}</div>`;
+                    }
+
+                    const pdfSourceHTML = `
+                        <div style="font-family: sans-serif; color: #333; width: 650px; margin: auto; padding: 20px;">
+                            <h1 style="font-size: 24px; text-align: center; margin: 0; color: #1E90FF;">${settings.title}</h1>
+                            <p style="font-size: 12px; text-align: center; margin-top: 4px; color: #555;">${settings.description || ''}</p>
+                            <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; font-size: 12px; line-height: 1.6;">
+                                <div><div style="display: flex; justify-content: space-between;"><strong>Questions:</strong><span>${totalQuestions}</span></div><div style="display: flex; justify-content: space-between;"><strong>Correct:</strong><span>${correctCount}</span></div><div style="display: flex; justify-content: space-between;"><strong>Partially Correct:</strong><span>0</span></div><div style="display: flex; justify-content: space-between;"><strong>Wrong:</strong><span>${wrongCount}</span></div><div style="display: flex; justify-content: space-between;"><strong>Not Attempted:</strong><span>${notAttemptedCount}</span></div><div style="display: flex; justify-content: space-between;"><strong>Marks for Correct:</strong><span>+${correctMarks}</span></div></div>
+                                <div><div style="display: flex; justify-content: space-between;"><strong>Marks:</strong><span>${userScore.toFixed(2)} / ${totalScore.toFixed(2)}</span></div><div style="display: flex; justify-content: space-between;"><strong>Total Marks:</strong><span>${totalScore.toFixed(2)}</span></div><div style="display: flex; justify-content: space-between;"><strong>Accuracy:</strong><span>${accuracy.toFixed(2)}%</span></div><div style="display: flex; justify-content: space-between;"><strong>Percentage:</strong><span>${percentage.toFixed(2)}%</span></div><div style="display: flex; justify-content: space-between;"><strong>Duration:</strong><span>${formattedDuration}</span></div><div style="display: flex; justify-content: space-between;"><strong>-ve marking for wrong:</strong><span>-${wrongMarks}</span></div></div>
+                            </div>
+                            <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px; text-align:center;">OMR Analysis</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; font-size: 11px;">${analysisHTML}</div>
+                            <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                            <div style="font-size: 11px;"><h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold;">How to cross check answers?</h4><p style="margin: 2px 0;">Serial Number with <span style="color: red;">red*</span> color is marked for review</p><p style="margin: 2px 0;">Options with <span style="color: green;">green</span> color is correct chosen option</p><p style="margin: 2px 0;">Options with <span style="color: red;">red</span> color is incorrect chosen option</p><p style="margin: 2px 0;">Options with <span style="background-color: #d1d5db; border-radius:2px; padding: 0 2px;">grey</span> color is correct option but not chosen</p></div>
+                        </div>`;
+
+                    const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: 'a4' });
+                    pdf.html(pdfSourceHTML, {
+                        callback: function(pdf) {
+                            generatedPdf = pdf;
+                            const pdfDataUri = pdf.output('datauristring');
+                            pdfViewer.src = pdfDataUri;
+                            reportContainer.style.display = 'none';
+                            pdfPreviewContainer.classList.remove('hidden');
+                            pdfBtn.querySelector('.btn-text').style.display = 'block';
+                            pdfBtn.querySelector('.loader').style.display = 'none';
+                            pdfBtn.disabled = false;
+                        },
+                        x: 15, y: 15, width: 416, windowWidth: 650
+                    });
+                }, 100);
             }
+             document.getElementById('share-btn').addEventListener('click', async () => {
+                const shareText = `I scored ${userScore.toFixed(2)}/${totalScore.toFixed(2)} (${percentage.toFixed(1)}%) in the ${settings.title} exam! Check out this OMR app.`;
+                try {
+                    if (navigator.share) {
+                        await navigator.share({ title: 'OMR Exam Result', text: shareText, url: window.location.href });
+                    } else {
+                        alert('Share feature is not supported on your browser.');
+                    }
+                } catch (err) { console.error("Share failed:", err); }
+            });
         });
     </script>
 </body>
