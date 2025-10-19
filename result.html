@@ -6,7 +6,6 @@
     <title>Performance Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
         .report-container { background: white; padding: 2rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); width: 100%; max-width: 500px; }
@@ -42,11 +41,7 @@
         </div>
     </div>
 
-    <!-- Hidden div for PDF generation -->
-    <div id="pdf-source" style="position: absolute; left: -9999px; top: -9999px; background: white; color: black; width: 800px; padding: 20px;"></div>
-
     <script>
-        window.jsPDF = window.jspdf.jsPDF;
         document.addEventListener('DOMContentLoaded', () => {
             const settings = JSON.parse(localStorage.getItem('omrSettings'));
             const userAnswers = JSON.parse(localStorage.getItem('userAnswers'));
@@ -97,19 +92,11 @@
             document.getElementById('accuracy-val').textContent = `${accuracy.toFixed(2)}%`;
             document.getElementById('percentage-val').textContent = `${percentage.toFixed(2)}%`;
             document.getElementById('duration-val').textContent = formattedDuration;
-
-            // Store this exam's full data for the RECENT EXAMS list
-            const currentExamData = {
-                id: Date.now(), // Unique ID for this exam session
-                settings,
-                userAnswers,
-                answerKey
-            };
             
+            const currentExamData = { id: Date.now(), settings, userAnswers, answerKey };
             let pastExams = JSON.parse(localStorage.getItem('pastExams')) || [];
             pastExams.unshift(currentExamData);
             localStorage.setItem('pastExams', JSON.stringify(pastExams));
-
 
             document.getElementById('share-btn').addEventListener('click', () => alert('Share functionality will be implemented in the final app.'));
             document.getElementById('pdf-btn').addEventListener('click', generatePDF);
@@ -120,102 +107,125 @@
                 pdfBtn.querySelector('.loader').style.display = 'block';
                 pdfBtn.disabled = true;
 
-                const pdfSource = document.getElementById('pdf-source');
-                let analysisHTML = '';
-                const optionChars = ['A', 'B', 'C', 'D', 'E'];
-                
-                for (let i = 1; i <= totalQuestions; i++) {
-                    const userAnswer = userAnswers[i], correctAnswer = answerKey[i];
-                    let marksText = '', itemBg = '#fff', optionsHTML = '';
-                    
-                    if (userAnswer === null) {
-                        marksText = `<span style="color: #4b5563;">0</span>`;
-                        itemBg = '#f3f4f6';
-                    } else if (userAnswer === correctAnswer) {
-                        marksText = `<span style="color: #16a34a;">+${correctMarks}</span>`;
-                    } else {
-                        marksText = `<span style="color: #dc2626;">-${wrongMarks}</span>`;
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                let y = 15;
+
+                function addText(text, x, size, style, align = 'left') {
+                    if (y > pageHeight - 15) {
+                        pdf.addPage();
+                        y = 15;
                     }
-                    
-                    for (let j = 0; j < settings.options; j++) {
-                        const optChar = optionChars[j];
-                        let optStyle = 'border: 1px solid #ccc;';
-                        if (optChar === userAnswer && userAnswer === correctAnswer) {
-                            optStyle = 'background-color: #22c55e; color: white; border-color: #22c55e;';
-                        } else if (optChar === userAnswer && userAnswer !== correctAnswer) {
-                            optStyle = 'background-color: #ef4444; color: white; border-color: #ef4444;';
-                        } else if (optChar !== userAnswer && optChar === correctAnswer) {
-                            optStyle = 'border: 2px solid #d1d5db;'; // Correct option, not chosen
-                        }
-                        optionsHTML += `<span style="width: 20px; height: 20px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; margin: 0 2px; font-size: 10px; ${optStyle}">${optChar}</span>`;
+                    pdf.setFontSize(size).setFont(undefined, style);
+                    if (align === 'center') {
+                        const textWidth = pdf.getStringUnitWidth(text) * pdf.getFontSize() / pdf.internal.scaleFactor;
+                        x = (pageWidth - textWidth) / 2;
                     }
-                    analysisHTML += `<div style="display: flex; align-items: center; border: 1px solid #eee; padding: 5px; border-radius: 4px; background-color: ${itemBg};"><span style="font-weight: bold; margin-right: 8px; min-width: 25px;">${i}.</span> ${optionsHTML} <span style="margin-left: auto; font-weight: bold;">${marksText}</span></div>`;
+                    pdf.text(text, x, y);
                 }
 
-                pdfSource.innerHTML = `
-                    <div style="font-family: sans-serif; color: #333; width: 100%; margin: auto;">
-                        <h1 style="font-size: 28px; text-align: center; margin: 0; color: #1E90FF;">${settings.title}</h1>
-                        <p style="font-size: 14px; text-align: center; margin-top: 5px; color: #555;">${settings.description || ''}</p>
-                        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; font-size: 14px; line-height: 1.8;">
-                            <div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Questions:</strong><span>${totalQuestions}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Correct:</strong><span style="color: #16a34a;">${correctCount}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Partially Correct:</strong><span>0</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Wrong:</strong><span style="color: #dc2626;">${wrongCount}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Not Attempted:</strong><span>${notAttemptedCount}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Marks for Correct:</strong><span>+${correctMarks}</span></div>
-                            </div>
-                            <div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Marks:</strong><span style="font-weight: bold; color: #1E90FF;">${userScore.toFixed(2)} / ${totalScore.toFixed(2)}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Total Marks:</strong><span>${totalScore.toFixed(2)}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Accuracy:</strong><span>${accuracy.toFixed(2)}%</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Percentage:</strong><span>${percentage.toFixed(2)}%</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Duration:</strong><span>${formattedDuration}</span></div>
-                                <div style="display: flex; justify-content: space-between;"><strong>Marks for Wrong:</strong><span>-${wrongMarks}</span></div>
-                            </div>
-                        </div>
-                        <h3 style="font-size: 20px; font-weight: bold; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">OMR Analysis</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">${analysisHTML}</div>
-                        <div style="margin-top: 20px; font-size: 12px; border-top: 1px solid #ccc; padding-top: 10px;">
-                            <h4 style="margin: 0 0 10px 0; font-size: 14px;">How to cross check answers?</h4>
-                            <p style="margin: 2px 0;">Serial Number with <span style="color: red;">red*</span> color is marked for review</p>
-                            <p style="margin: 2px 0;">Options with <span style="color: green;">green</span> color is correct chosen option</p>
-                            <p style="margin: 2px 0;">Options with <span style="color: red;">red</span> color is incorrect chosen option</p>
-                            <p style="margin: 2px 0;">Options with <span style="color: grey;">grey</span> border is correct option but not chosen</p>
-                        </div>
-                    </div>`;
+                addText(settings.title, 0, 22, 'bold', 'center');
+                y += 8;
+                if (settings.description) {
+                    addText(settings.description, 0, 12, 'normal', 'center');
+                    y += 6;
+                }
+                pdf.setDrawColor(200, 200, 200);
+                pdf.line(15, y, pageWidth - 15, y);
+                y += 10;
 
-                html2canvas(pdfSource).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = pdf.internal.pageSize.getHeight();
-                    const canvasWidth = canvas.width;
-                    const canvasHeight = canvas.height;
-                    const ratio = canvasWidth / canvasHeight;
-                    const imgWidth = pdfWidth - 20; // with margin
-                    const imgHeight = imgWidth / ratio;
-                    
-                    let heightLeft = imgHeight;
-                    let position = 10;
-                    
-                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-                    heightLeft -= (pdfHeight - 20);
+                const col1X = 20, col2X = 110;
+                let initialYForStats = y;
+                let yCol1 = initialYForStats;
 
-                    while (heightLeft > 0) {
-                        position -= (pdfHeight - 20);
+                addText('Performance Summary', col1X, 14, 'bold'); yCol1 += 8;
+                addText(`Questions: ${totalQuestions}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`Correct: ${correctCount}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`Wrong: ${wrongCount}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`Not Attempted: ${notAttemptedCount}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`Marks for Correct: +${correctMarks}`, col1X, 11, 'normal'); yCol1 += 7;
+                addText(`-ve marking for wrong: -${wrongMarks}`, col1X, 11, 'normal');
+
+                let yCol2 = initialYForStats;
+                addText('Result', col2X, 14, 'bold'); yCol2 += 8;
+                addText(`Marks: ${userScore.toFixed(2)} / ${totalScore.toFixed(2)}`, col2X, 11, 'bold'); yCol2 += 7;
+                addText(`Total Marks: ${totalScore.toFixed(2)}`, col2X, 11, 'normal'); yCol2 += 7;
+                addText(`Accuracy: ${accuracy.toFixed(2)}%`, col2X, 11, 'normal'); yCol2 += 7;
+                addText(`Percentage: ${percentage.toFixed(2)}%`, col2X, 11, 'normal'); yCol2 += 7;
+                addText(`Duration: ${formattedDuration}`, col2X, 11, 'normal');
+                
+                y = Math.max(yCol1, yCol2) + 5;
+                pdf.line(15, y, pageWidth - 15, y);
+                y += 10;
+
+                addText('OMR Analysis', 15, 16, 'bold');
+                y += 8;
+
+                for (let i = 1; i <= totalQuestions; i++) {
+                    if (y > pageHeight - 15) {
                         pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-                        heightLeft -= (pdfHeight-20);
+                        y = 15;
+                        addText('OMR Analysis (continued)', 15, 16, 'bold');
+                        y += 8;
+                    }
+
+                    const userAnswer = userAnswers[i];
+                    const correctAnswer = answerKey[i];
+                    const optionChars = ['A', 'B', 'C', 'D', 'E'];
+                    let marksText = '';
+                    
+                    if (userAnswer === null) {
+                        marksText = '0';
+                        pdf.setFillColor(243, 244, 246); // gray-100
+                        pdf.rect(15, y - 5, pageWidth - 30, 9, 'F');
+                    } else if (userAnswer === correctAnswer) {
+                        marksText = `+${correctMarks}`;
+                    } else {
+                        marksText = `-${wrongMarks}`;
+                    }
+
+                    pdf.setFontSize(11).setFont(undefined, 'bold');
+                    pdf.text(`${i}.`, 18, y);
+
+                    let optionX = 35;
+                    for (let j = 0; j < settings.options; j++) {
+                        const optChar = optionChars[j];
+                        pdf.setLineWidth(0.3);
+                        pdf.setDrawColor(150, 150, 150);
+                        pdf.setTextColor(0, 0, 0);
+                        let isFilled = false;
+                        
+                        if (optChar === userAnswer) {
+                            if (userAnswer === correctAnswer) pdf.setFillColor(34, 197, 94); // green-500
+                            else pdf.setFillColor(239, 68, 68); // red-500
+                            pdf.setTextColor(255, 255, 255);
+                            isFilled = true;
+                        } else if (optChar === correctAnswer) {
+                            pdf.setLineWidth(0.8);
+                            pdf.setDrawColor(34, 197, 94); // green-500
+                        }
+
+                        pdf.circle(optionX + 2.5, y - 1.5, 3, isFilled ? 'FD' : 'D');
+                        pdf.text(optChar, optionX + 1.5, y);
+                        optionX += 12;
                     }
                     
-                    pdf.save(`${settings.title}_Report.pdf`);
+                    pdf.setFontSize(11).setFont(undefined, 'bold');
+                    if (marksText.startsWith('+')) pdf.setTextColor(22, 163, 74); // green-600
+                    else if (marksText.startsWith('-')) pdf.setTextColor(220, 38, 38); // red-600
+                    else pdf.setTextColor(107, 114, 128); // gray-500
+                    
+                    pdf.text(marksText, pageWidth - 20, y, { align: 'right' });
+                    pdf.setTextColor(0, 0, 0);
+                    y += 10;
+                }
 
-                    setTimeout(() => {
-                         window.location.href = './index.html';
-                    }, 500);
-                });
+                pdf.save(`${settings.title}_Report.pdf`);
+                setTimeout(() => {
+                    window.location.href = './index.html';
+                }, 500);
             }
         });
     </script>
