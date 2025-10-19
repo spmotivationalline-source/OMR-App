@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create OMR Sheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
+        .form-container { background: white; padding: 1.5rem 2rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); width: 100%; max-width: 500px; }
+        .input-group { margin-bottom: 1rem; }
+        .input-label { display: block; margin-bottom: 0.5rem; color: #374151; font-weight: 600; }
+        .input-field { width: 100%; padding: 0.75rem; border: 1px solid #10B981; border-radius: 0.5rem; transition: box-shadow 0.2s; }
+        .input-field:focus { outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); }
+        .input-inline-group { display: flex; gap: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <div class="flex items-center mb-4">
+            <a href="./index.html" class="text-gray-600 hover:text-gray-900 mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </a>
+            <h1 class="text-2xl font-bold text-center text-gray-800 flex-grow">Please create your OMR Sheet</h1>
+        </div>
+        <form id="omr-form">
+            <div class="input-group"><label for="title" class="input-label">Enter Title*</label><input type="text" id="title" class="input-field" required></div>
+            <div class="input-group"><label for="description" class="input-label">Enter Description</label><input type="text" id="description" class="input-field"></div>
+            <div class="input-inline-group">
+                <div class="input-group w-full"><label for="start-index" class="input-label">Start Index</label><input type="number" id="start-index" class="input-field" value="1" min="0"></div>
+                <div class="input-group w-full"><label for="end-index" class="input-label">End Index</label><input type="number" id="end-index" class="input-field" value="0" min="0"></div>
+            </div>
+            <div class="input-group"><label for="total-questions" class="input-label">Total Questions*</label><input type="number" id="total-questions" class="input-field" required min="1"></div>
+            <div class="input-inline-group">
+                <div class="input-group w-full"><label for="question-type" class="input-label">Question Type</label><select id="question-type" class="input-field bg-white"><option>Single Correct</option><option>Multiple Correct</option></select></div>
+                <div class="input-group w-full"><label for="options" class="input-label">Options</label><select id="options" class="input-field bg-white"><option>4</option><option>5</option></select></div>
+            </div>
+            <div class="input-inline-group">
+                <div class="input-group w-full"><label for="correct-marks" class="input-label">Marks for correct answer*</label><input type="text" id="correct-marks" class="input-field" required value="4"></div>
+                <div class="input-group w-full"><label for="wrong-marks" class="input-label">Marks for wrong answer*</label><input type="text" id="wrong-marks" class="input-field" required value="1"></div>
+            </div>
+            <div class="input-group"><label for="duration" class="input-label">Duration in minutes*</label><input type="number" id="duration" class="input-field" required min="1"></div>
+            <div class="input-inline-group">
+                <div class="input-group w-full"><label for="time-measurement" class="input-label">Time Measurement</label><select id="time-measurement" class="input-field bg-white"><option>Count Down</option><option>Stop Watch</option></select></div>
+            </div>
+            <button type="submit" class="w-full mt-4 bg-[#1E90FF] text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-600 transition-colors">Start Exam</button>
+        </form>
+    </div>
+
+    <script>
+        function allowOnlyNumbersAndDecimal(event) {
+            const { key, target } = event;
+            if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(key)) return;
+            if ((isNaN(parseInt(key)) && key !== '.') || (key === '.' && target.value.includes('.'))) event.preventDefault();
+        }
+        document.getElementById('correct-marks').addEventListener('keydown', allowOnlyNumbersAndDecimal);
+        document.getElementById('wrong-marks').addEventListener('keydown', allowOnlyNumbersAndDecimal);
+
+        function allowOnlyPositiveIntegers(event) {
+            if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(event.key)) return;
+            if (isNaN(parseInt(event.key))) event.preventDefault();
+        }
+        ['start-index', 'end-index', 'total-questions', 'duration'].forEach(id => document.getElementById(id).addEventListener('keydown', allowOnlyPositiveIntegers));
+
+        document.getElementById('omr-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const settings = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                totalQuestions: document.getElementById('total-questions').value,
+                options: document.getElementById('options').value,
+                correctMarks: document.getElementById('correct-marks').value,
+                wrongMarks: document.getElementById('wrong-marks').value,
+                duration: document.getElementById('duration').value,
+            };
+            localStorage.setItem('omrSettings', JSON.stringify(settings));
+            window.location.href = './exam-omr.html';
+        });
+    </script>
+</body>
+</html>
+

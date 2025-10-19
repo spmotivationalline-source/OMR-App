@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMR Exam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
+        .omr-container { width: 100%; max-width: 800px; margin: 1rem auto; background: white; padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .omr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .question-row { display: flex; align-items: center; padding: 0.5rem; border-radius: 0.5rem; background-color: #f9fafb; }
+        .question-number { font-weight: bold; color: #374151; margin-right: 0.75rem; min-width: 30px; }
+        .options { display: flex; gap: 0.5rem; }
+        .option { width: 28px; height: 28px; border: 1px solid #9ca3af; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 0.8rem; transition: background-color 0.2s, color 0.2s; }
+        .option.selected { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        .timer { font-size: 1.25rem; font-weight: bold; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background-color 0.5s, color 0.5s; }
+        .sound-prompt { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 1rem 2rem; border-radius: 1rem; z-index: 99; cursor: pointer; }
+        @media (max-width: 640px) { .omr-container { padding: 1rem; margin: 0.5rem auto; } .omr-grid { gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } .header h1 { font-size: 1.25rem; } .timer { font-size: 1rem; padding: 0.4rem 0.8rem; } }
+    </style>
+</head>
+<body>
+    <div id="sound-prompt" class="sound-prompt">Click anywhere to enable sound</div>
+    <div class="omr-container">
+        <header class="flex justify-between items-center mb-6 pb-4 border-b header">
+            <h1 id="exam-title" class="text-2xl font-bold text-gray-800">Exam Title</h1>
+            <div id="timer" class="timer text-green-600 bg-green-100">00:00:00</div>
+        </header>
+        <div id="omr-grid" class="omr-grid"></div>
+        <div class="mt-8 text-center"><button id="submit-btn" class="bg-blue-600 text-white font-bold py-3 px-10 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Submit Exam</button></div>
+    </div>
+    <script>
+        let soundEnabled = false;
+        document.body.addEventListener('click', () => { if (!soundEnabled) { soundEnabled = true; document.getElementById('sound-prompt').style.display = 'none'; } }, { once: true });
+        function playBeep(count = 1) {
+            if (!soundEnabled) return;
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                for (let i = 0; i < count; i++) { setTimeout(() => { const osc = audioContext.createOscillator(), gain = audioContext.createGain(); osc.connect(gain); gain.connect(audioContext.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(880, audioContext.currentTime); gain.gain.setValueAtTime(0.5, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.3); osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 0.3); }, i * 400); }
+            } catch (e) { console.error("Could not play sound:", e); }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const settings = JSON.parse(localStorage.getItem('omrSettings'));
+            if (!settings) { document.getElementById('exam-title').textContent = "Error: No settings!"; return; }
+            document.getElementById('exam-title').textContent = settings.title || "My Exam";
+            const totalQuestions = parseInt(settings.totalQuestions), optionsCount = parseInt(settings.options);
+            let durationInSeconds = (parseInt(settings.duration) || 10) * 60;
+            const omrGrid = document.getElementById('omr-grid'), optionChars = ['A', 'B', 'C', 'D', 'E'], userAnswers = {};
+            for (let i = 1; i <= totalQuestions; i++) {
+                userAnswers[i] = null;
+                const row = document.createElement('div'); row.className = 'question-row';
+                row.innerHTML = `<div class="question-number">${i}.</div>`;
+                const opts = document.createElement('div'); opts.className = 'options';
+                for (let j = 0; j < optionsCount; j++) {
+                    const opt = document.createElement('div'); opt.className = 'option'; opt.textContent = optionChars[j];
+                    opt.addEventListener('click', () => {
+                        const sel = opts.querySelector('.selected');
+                        if (sel) sel.classList.remove('selected');
+                        opt.classList.add('selected');
+                        userAnswers[i] = opt.textContent;
+                    });
+                    opts.appendChild(opt);
+                }
+                row.appendChild(opts); omrGrid.appendChild(row);
+            }
+            const timerEl = document.getElementById('timer');
+            let timerInterval;
+            function updateTimer() {
+                const h = Math.floor(durationInSeconds / 3600), m = Math.floor((durationInSeconds % 3600) / 60), s = durationInSeconds % 60;
+                timerEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                if (durationInSeconds <= 10 && durationInSeconds > 0 && !timerEl.classList.contains('text-red-600')) {
+                    timerEl.classList.remove('text-green-600', 'bg-green-100');
+                    timerEl.classList.add('text-red-600', 'bg-red-100');
+                    playBeep(2);
+                }
+                if (durationInSeconds < 0) { clearInterval(timerInterval); timerEl.textContent = "00:00:00"; playBeep(1); submitExam(true); }
+                durationInSeconds--;
+            }
+            timerInterval = setInterval(updateTimer, 1000); updateTimer();
+            const submitBtn = document.getElementById('submit-btn');
+            function submitExam(auto = false) {
+                clearInterval(timerInterval); localStorage.setItem('timeTaken', durationInSeconds);
+                submitBtn.disabled = true; submitBtn.textContent = 'Submitting...';
+                omrGrid.style.pointerEvents = 'none'; omrGrid.style.opacity = '0.6';
+                localStorage.setItem('userAnswers', JSON.stringify(userAnswers));
+                if (auto) alert("Time is up! Submitting automatically.");
+                window.location.href = './summary.html';
+            }
+            submitBtn.addEventListener('click', () => submitExam(false));
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
+        .report-container { background: white; padding: 2rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); width: 100%; max-width: 500px; }
+        .stat-item { display: flex; justify-content: space-between; padding: 0.75rem 0; }
+        .stat-label { color: #4b5563; }
+        .stat-value { font-weight: 600; color: #1f2937; }
+        .action-button { display: block; width: 100%; text-align: center; font-weight: bold; padding: 0.8rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); transition: all 0.2s; }
+        .action-button.share { background-color: #3b82f6; color: white; }
+        .action-button.pdf { background-color: #22c55e; color: white; }
+        .action-button.retry { background-color: #f97316; color: white; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <h1 class="text-3xl font-bold text-center text-gray-800">Performance Report</h1>
+        <p id="exam-title-report" class="text-center text-gray-500 mb-6">-</p>
+        <div class="divide-y divide-gray-200">
+            <div class="stat-item"><span class="stat-label">Questions:</span><span id="q-count" class="stat-value">-</span></div>
+            <div class="stat-item"><span class="stat-label">Correct:</span><span id="correct-val" class="stat-value text-green-600">-</span></div>
+            <div class="stat-item"><span class="stat-label">Wrong:</span><span id="wrong-val" class="stat-value text-red-600">-</span></div>
+            <div class="stat-item"><span class="stat-label">Not Attempted:</span><span id="not-attempted-val" class="stat-value text-gray-600">-</span></div>
+            <div class="stat-item"><span class="stat-label">Marks:</span><span id="marks-val" class="stat-value text-blue-600">-</span></div>
+            <div class="stat-item"><span class="stat-label">Accuracy:</span><span id="accuracy-val" class="stat-value">-</span></div>
+            <div class="stat-item"><span class="stat-label">Percentage:</span><span id="percentage-val" class="stat-value">-</span></div>
+            <div class="stat-item"><span class="stat-label">Duration:</span><span id="duration-val" class="stat-value">-</span></div>
+        </div>
+        <div class="mt-8 space-y-3">
+            <button id="share-btn" class="action-button share">Share</button>
+            <button id="pdf-btn" class="action-button pdf"><span class="btn-text">Generate PDF Report</span><div class="loader"></div></button>
+            <a href="./create-omr.html" class="action-button retry">Retry</a>
+        </div>
+    </div>
+
+    <!-- Hidden div for PDF generation -->
+    <div id="pdf-source" style="position: absolute; left: -9999px; top: -9999px; background: white; color: black; width: 800px; padding: 20px;"></div>
+
+    <script>
+        window.jsPDF = window.jspdf.jsPDF;
+        document.addEventListener('DOMContentLoaded', () => {
+            const settings = JSON.parse(localStorage.getItem('omrSettings'));
+            const userAnswers = JSON.parse(localStorage.getItem('userAnswers'));
+            const answerKey = JSON.parse(localStorage.getItem('correctAnswerKey'));
+
+            if (!settings || !userAnswers || !answerKey) {
+                document.querySelector('.report-container').innerHTML = `<h1 class="text-red-500 text-center">Error! Report data not found. Please start a new exam.</h1><a href="./index.html" class="block text-center mt-4 text-blue-600">Go to Home</a>`;
+                return;
+            }
+
+            const totalQuestions = parseInt(settings.totalQuestions);
+            const correctMarks = parseFloat(settings.correctMarks);
+            const wrongMarks = parseFloat(settings.wrongMarks);
+
+            let correctCount = 0, wrongCount = 0, notAttemptedCount = 0;
+            for (let i = 1; i <= totalQuestions; i++) {
+                if (userAnswers[i] === null) notAttemptedCount++;
+                else if (userAnswers[i] === answerKey[i]) correctCount++;
+                else wrongCount++;
+            }
+
+            const userScore = (correctCount * correctMarks) - (wrongCount * wrongMarks);
+            const totalScore = totalQuestions * correctMarks;
+            const attemptedCount = correctCount + wrongCount;
+
+            const percentage = totalScore > 0 ? ((userScore / totalScore) * 100) : 0;
+            const accuracy = attemptedCount > 0 ? ((correctCount / attemptedCount) * 100) : 0;
+
+            let examDurationSeconds = 0;
+            const timeTaken = localStorage.getItem('timeTaken');
+            if (timeTaken) {
+                const totalDuration = (parseInt(settings.duration) || 0) * 60;
+                examDurationSeconds = totalDuration - (parseInt(timeTaken) + 1);
+                if(examDurationSeconds < 0) examDurationSeconds = 0;
+            }
+
+            const dur_hr = String(Math.floor(examDurationSeconds / 3600)).padStart(2, '0');
+            const dur_min = String(Math.floor((examDurationSeconds % 3600) / 60)).padStart(2, '0');
+            const dur_sec = String(examDurationSeconds % 60).padStart(2, '0');
+            const formattedDuration = `${dur_hr}:${dur_min}:${dur_sec}`;
+
+            document.getElementById('exam-title-report').textContent = settings.title;
+            document.getElementById('q-count').textContent = totalQuestions;
+            document.getElementById('correct-val').textContent = correctCount;
+            document.getElementById('wrong-val').textContent = wrongCount;
+            document.getElementById('not-attempted-val').textContent = notAttemptedCount;
+            document.getElementById('marks-val').textContent = `${userScore.toFixed(2)} / ${totalScore.toFixed(2)}`;
+            document.getElementById('accuracy-val').textContent = `${accuracy.toFixed(2)}%`;
+            document.getElementById('percentage-val').textContent = `${percentage.toFixed(2)}%`;
+            document.getElementById('duration-val').textContent = formattedDuration;
+
+            // Store this exam's full data for the RECENT EXAMS list
+            const currentExamData = {
+                id: Date.now(), // Unique ID for this exam session
+                settings,
+                userAnswers,
+                answerKey
+            };
+            
+            let pastExams = JSON.parse(localStorage.getItem('pastExams')) || [];
+            pastExams.unshift(currentExamData);
+            localStorage.setItem('pastExams', JSON.stringify(pastExams));
+
+
+            document.getElementById('share-btn').addEventListener('click', () => alert('Share functionality will be implemented in the final app.'));
+            document.getElementById('pdf-btn').addEventListener('click', generatePDF);
+
+            function generatePDF() {
+                const pdfBtn = document.getElementById('pdf-btn');
+                pdfBtn.querySelector('.btn-text').style.display = 'none';
+                pdfBtn.querySelector('.loader').style.display = 'block';
+                pdfBtn.disabled = true;
+
+                const pdfSource = document.getElementById('pdf-source');
+                let analysisHTML = '';
+                const optionChars = ['A', 'B', 'C', 'D', 'E'];
+                
+                for (let i = 1; i <= totalQuestions; i++) {
+                    const userAnswer = userAnswers[i], correctAnswer = answerKey[i];
+                    let marksText = '', itemBg = '#fff', optionsHTML = '';
+                    
+                    if (userAnswer === null) {
+                        marksText = `<span style="color: #4b5563;">0</span>`;
+                        itemBg = '#f3f4f6';
+                    } else if (userAnswer === correctAnswer) {
+                        marksText = `<span style="color: #16a34a;">+${correctMarks}</span>`;
+                    } else {
+                        marksText = `<span style="color: #dc2626;">-${wrongMarks}</span>`;
+                    }
+                    
+                    for (let j = 0; j < settings.options; j++) {
+                        const optChar = optionChars[j];
+                        let optStyle = 'border: 1px solid #ccc;';
+                        if (optChar === userAnswer && userAnswer === correctAnswer) {
+                            optStyle = 'background-color: #22c55e; color: white; border-color: #22c55e;';
+                        } else if (optChar === userAnswer && userAnswer !== correctAnswer) {
+                            optStyle = 'background-color: #ef4444; color: white; border-color: #ef4444;';
+                        } else if (optChar !== userAnswer && optChar === correctAnswer) {
+                            optStyle = 'border: 2px solid #d1d5db;'; // Correct option, not chosen
+                        }
+                        optionsHTML += `<span style="width: 20px; height: 20px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; margin: 0 2px; font-size: 10px; ${optStyle}">${optChar}</span>`;
+                    }
+                    analysisHTML += `<div style="display: flex; align-items: center; border: 1px solid #eee; padding: 5px; border-radius: 4px; background-color: ${itemBg};"><span style="font-weight: bold; margin-right: 8px; min-width: 25px;">${i}.</span> ${optionsHTML} <span style="margin-left: auto; font-weight: bold;">${marksText}</span></div>`;
+                }
+
+                pdfSource.innerHTML = `
+                    <div style="font-family: sans-serif; color: #333; width: 100%; margin: auto;">
+                        <h1 style="font-size: 28px; text-align: center; margin: 0; color: #1E90FF;">${settings.title}</h1>
+                        <p style="font-size: 14px; text-align: center; margin-top: 5px; color: #555;">${settings.description || ''}</p>
+                        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; font-size: 14px; line-height: 1.8;">
+                            <div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Questions:</strong><span>${totalQuestions}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Correct:</strong><span style="color: #16a34a;">${correctCount}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Partially Correct:</strong><span>0</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Wrong:</strong><span style="color: #dc2626;">${wrongCount}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Not Attempted:</strong><span>${notAttemptedCount}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Marks for Correct:</strong><span>+${correctMarks}</span></div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Marks:</strong><span style="font-weight: bold; color: #1E90FF;">${userScore.toFixed(2)} / ${totalScore.toFixed(2)}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Total Marks:</strong><span>${totalScore.toFixed(2)}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Accuracy:</strong><span>${accuracy.toFixed(2)}%</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Percentage:</strong><span>${percentage.toFixed(2)}%</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Duration:</strong><span>${formattedDuration}</span></div>
+                                <div style="display: flex; justify-content: space-between;"><strong>Marks for Wrong:</strong><span>-${wrongMarks}</span></div>
+                            </div>
+                        </div>
+                        <h3 style="font-size: 20px; font-weight: bold; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">OMR Analysis</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">${analysisHTML}</div>
+                        <div style="margin-top: 20px; font-size: 12px; border-top: 1px solid #ccc; padding-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 14px;">How to cross check answers?</h4>
+                            <p style="margin: 2px 0;">Serial Number with <span style="color: red;">red*</span> color is marked for review</p>
+                            <p style="margin: 2px 0;">Options with <span style="color: green;">green</span> color is correct chosen option</p>
+                            <p style="margin: 2px 0;">Options with <span style="color: red;">red</span> color is incorrect chosen option</p>
+                            <p style="margin: 2px 0;">Options with <span style="color: grey;">grey</span> border is correct option but not chosen</p>
+                        </div>
+                    </div>`;
+
+                html2canvas(pdfSource).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvas.height;
+                    const ratio = canvasWidth / canvasHeight;
+                    const imgWidth = pdfWidth - 20; // with margin
+                    const imgHeight = imgWidth / ratio;
+                    
+                    let heightLeft = imgHeight;
+                    let position = 10;
+                    
+                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                    heightLeft -= (pdfHeight - 20);
+
+                    while (heightLeft > 0) {
+                        position -= (pdfHeight - 20);
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                        heightLeft -= (pdfHeight-20);
+                    }
+                    
+                    pdf.save(`${settings.title}_Report.pdf`);
+
+                    setTimeout(() => {
+                         window.location.href = './index.html';
+                    }, 500);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+

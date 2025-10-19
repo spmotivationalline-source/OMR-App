@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Summary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; }
+        .summary-container { background: white; padding: 2rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); width: 100%; max-width: 450px; text-align: center; }
+        .summary-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background-color: #f9fafb; border-radius: 0.75rem; border: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div class="summary-container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Summary</h1>
+        <div class="space-y-4 text-left">
+            <div class="summary-item">
+                <span class="font-semibold text-gray-700">Attempted</span>
+                <span id="attempted-count" class="font-bold text-lg text-blue-600">0</span>
+            </div>
+            <div class="summary-item">
+                <span class="font-semibold text-gray-700">Not Attempted</span>
+                <span id="not-attempted-count" class="font-bold text-lg text-gray-600">0</span>
+            </div>
+            <div class="summary-item">
+                <span class="font-semibold text-gray-700">Marked for Review</span>
+                <span id="review-count" class="font-bold text-lg text-yellow-600">0</span>
+            </div>
+        </div>
+        <a href="./answer-key-entry.html" class="block w-full mt-8 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors">SUBMIT</a>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userAnswers = JSON.parse(localStorage.getItem('userAnswers'));
+            const settings = JSON.parse(localStorage.getItem('omrSettings'));
+            if (!userAnswers || !settings) { document.querySelector('.summary-container').innerHTML = `<h1 class="text-red-500">Error: Data not found.</h1>`; return; }
+            let attemptedCount = Object.values(userAnswers).filter(ans => ans !== null).length;
+            const totalQuestions = parseInt(settings.totalQuestions);
+            document.getElementById('attempted-count').textContent = attemptedCount;
+            document.getElementById('not-attempted-count').textContent = totalQuestions - attemptedCount;
+            document.getElementById('review-count').textContent = 0;
+        });
+    </script>
+</body>
+</html>
+

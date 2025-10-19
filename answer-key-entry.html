@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Answer Key</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
+        .omr-container { background: white; padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); max-width: 800px; margin: 1rem auto; }
+        .omr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+        .question-row { display: flex; align-items: center; padding: 0.5rem; border-radius: 0.5rem; background-color: #f9fafb; }
+        .question-number { font-weight: bold; margin-right: 0.75rem; min-width: 30px; }
+        .options { display: flex; gap: 0.5rem; }
+        .option { width: 28px; height: 28px; border: 1px solid #9ca3af; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+        .option.selected { background-color: #16a34a; color: white; border-color: #16a34a; }
+    </style>
+</head>
+<body>
+    <div class="omr-container">
+        <header class="flex justify-between items-center mb-6 pb-4 border-b">
+            <h1 class="text-2xl font-bold text-gray-800">Enter Correct Answers</h1>
+            <button id="save-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors">SAVE</button>
+        </header>
+        <div id="omr-grid" class="omr-grid"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const settings = JSON.parse(localStorage.getItem('omrSettings'));
+            if (!settings) { document.querySelector('.omr-container').innerHTML = `<h1>Error: No settings found.</h1>`; return; }
+            const totalQuestions = parseInt(settings.totalQuestions), optionsCount = parseInt(settings.options);
+            const omrGrid = document.getElementById('omr-grid'), optionChars = ['A', 'B', 'C', 'D', 'E'], correctAnswers = {};
+            for (let i = 1; i <= totalQuestions; i++) {
+                correctAnswers[i] = null;
+                const qRow = document.createElement('div'); qRow.className = 'question-row';
+                qRow.innerHTML = `<div class="question-number">${i}.</div>`;
+                const optsDiv = document.createElement('div'); optsDiv.className = 'options';
+                for (let j = 0; j < optionsCount; j++) {
+                    const opt = document.createElement('div'); opt.className = 'option'; opt.textContent = optionChars[j];
+                    opt.addEventListener('click', () => {
+                        const sel = optsDiv.querySelector('.selected');
+                        if (sel) sel.classList.remove('selected');
+                        opt.classList.add('selected');
+                        correctAnswers[i] = opt.textContent;
+                    });
+                    optsDiv.appendChild(opt);
+                }
+                qRow.appendChild(optsDiv); omrGrid.appendChild(qRow);
+            }
+            document.getElementById('save-btn').addEventListener('click', () => {
+                if (Object.values(correctAnswers).some(ans => ans === null)) { alert('Please provide answers for all questions.'); return; }
+                localStorage.setItem('correctAnswerKey', JSON.stringify(correctAnswers));
+                alert('Answer key saved!');
+                window.location.href = './result-analysis.html';
+            });
+        });
+    </script>
+</body>
+</html>
+

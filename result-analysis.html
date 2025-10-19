@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Result Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
+        .omr-container { background: white; padding: 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); max-width: 800px; margin: 1rem auto; }
+        .omr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+        .question-row { display: flex; align-items: center; padding: 0.5rem; border-radius: 0.5rem; position: relative; }
+        .question-number { font-weight: bold; margin-right: 0.75rem; min-width: 30px; }
+        .options { display: flex; gap: 0.5rem; }
+        .option { width: 28px; height: 28px; border: 1px solid #9ca3af; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; }
+        .marks-text { position: absolute; right: 8px; font-weight: bold; font-size: 0.9rem; }
+        .correct-answer .option.selected { background-color: #22c55e; color: white; border-color: #22c55e; }
+        .wrong-answer .option.selected { background-color: #ef4444; color: white; border-color: #ef4444; }
+        .correct-option-highlight { border: 2px solid #22c55e !important; }
+        .not-attempted { background-color: #f3f4f6; }
+    </style>
+</head>
+<body>
+    <div class="omr-container">
+        <header class="flex justify-between items-center mb-6 pb-4 border-b">
+            <h1 class="text-2xl font-bold text-gray-800">Result Analysis</h1>
+            <a href="./result.html" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700">View Final Result</a>
+        </header>
+        <div id="omr-grid" class="omr-grid"></div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const settings = JSON.parse(localStorage.getItem('omrSettings'));
+            const userAnswers = JSON.parse(localStorage.getItem('userAnswers'));
+            const answerKey = JSON.parse(localStorage.getItem('correctAnswerKey'));
+            if (!settings || !userAnswers || !answerKey) { document.querySelector('.omr-container').innerHTML = `<h1>Error: Data missing.</h1>`; return; }
+            const totalQuestions = parseInt(settings.totalQuestions), optionsCount = parseInt(settings.options);
+            const correctMarks = parseFloat(settings.correctMarks), wrongMarks = parseFloat(settings.wrongMarks);
+            const omrGrid = document.getElementById('omr-grid'), optionChars = ['A', 'B', 'C', 'D', 'E'];
+            for (let i = 1; i <= totalQuestions; i++) {
+                const qRow = document.createElement('div'); qRow.className = 'question-row';
+                const userAnswer = userAnswers[i], correctAnswer = answerKey[i];
+                let marksText = '', statusClass = '';
+                if (userAnswer === null) { statusClass = 'not-attempted'; marksText = `<span class="marks-text text-gray-600">0</span>`; }
+                else if (userAnswer === correctAnswer) { statusClass = 'correct-answer'; marksText = `<span class="marks-text text-green-600">+${correctMarks}</span>`; }
+                else { statusClass = 'wrong-answer'; marksText = `<span class="marks-text text-red-600">-${wrongMarks}</span>`; }
+                qRow.classList.add(statusClass);
+                qRow.innerHTML = `<div class="question-number">${i}.</div>`;
+                const optsDiv = document.createElement('div'); optsDiv.className = 'options';
+                for (let j = 0; j < optionsCount; j++) {
+                    const optChar = optionChars[j], opt = document.createElement('div');
+                    opt.className = 'option'; opt.textContent = optChar;
+                    if (optChar === userAnswer) opt.classList.add('selected');
+                    if (statusClass === 'wrong-answer' && optChar === correctAnswer) opt.classList.add('correct-option-highlight');
+                    optsDiv.appendChild(opt);
+                }
+                qRow.appendChild(optsDiv); qRow.innerHTML += marksText; omrGrid.appendChild(qRow);
+            }
+        });
+    </script>
+</body>
+</html>
+
