@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { background-color: #e5e7eb; }
+        #pdf-content { font-family: sans-serif; color: #333; background: white; margin: 1rem auto; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header class="bg-white shadow-md p-3 flex justify-between items-center sticky top-0 z-10">
+        <div class="flex items-center gap-4">
+            <a href="./result.html" class="text-gray-600 hover:text-gray-900" title="Back to Report">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </a>
+            <h2 class="text-lg font-bold text-gray-800">Your Report</h2>
+        </div>
+        <div class="flex items-center gap-3">
+             <a href="./index.html" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 text-sm">Go to Home</a>
+            <button id="download-pdf-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2">
+                <span id="btn-text">Download PDF</span>
+                <div id="loader" class="loader"></div>
+            </button>
+        </div>
+    </header>
+
+    <main id="pdf-content" class="w-[210mm] min-h-[297mm] p-8">
+        <!-- Content will be injected here by script -->
+    </main>
+
+    <script>
+        window.jsPDF = window.jspdf.jsPDF;
+        document.addEventListener('DOMContentLoaded', () => {
+            const reportData = JSON.parse(localStorage.getItem('currentReportData'));
+            if (!reportData) {
+                document.body.innerHTML = `<h1 class="text-red-500 text-center text-2xl mt-10">Error: Report data not found.</h1>`;
+                return;
+            }
+
+            const { settings, userAnswers, answerKey, result } = reportData;
+            const { correctCount, wrongCount, notAttemptedCount, userScore, totalScore, percentage, accuracy, formattedDuration } = result;
+            const totalQuestions = parseInt(settings.totalQuestions);
+            
+            let analysisHTML = '';
+            const optionChars = ['A', 'B', 'C', 'D', 'E'];
+            for (let i = 1; i <= totalQuestions; i++) {
+                const userAnswer = userAnswers[i], correctAnswer = answerKey[i];
+                let optionsHTML = '';
+                for (let j = 0; j < settings.options; j++) {
+                    const optChar = optionChars[j];
+                    let circleStyle = 'border: 1px solid #999; color: #333;';
+                    if (userAnswer === null && optChar === correctAnswer) {
+                        circleStyle = 'background-color: #d1d5db; color: #333; border: 1px solid #999;';
+                    } else if (optChar === userAnswer && userAnswer === correctAnswer) {
+                        circleStyle = 'background-color: #22c55e; color: white; border-color: #22c55e;';
+                    } else if (optChar === userAnswer && userAnswer !== correctAnswer) {
+                        circleStyle = 'background-color: #ef4444; color: white; border-color: #ef4444;';
+                    }
+                    optionsHTML += `<span style="width: 20px; height: 20px; border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; margin: 0 2px; font-size: 10px; ${circleStyle}">${optChar}</span>`;
+                }
+                analysisHTML += `<div style="display: inline-flex; width: 32.5%; align-items: center; padding: 4px; border-radius: 4px; box-sizing: border-box; margin-bottom: 4px;"><span style="font-weight: bold; margin-right: 8px; min-width: 25px;">${i}.</span> ${optionsHTML}</div>`;
+            }
+
+            const reportHTML = `
+                <h1 style="font-size: 24px; text-align: center; margin: 0; color: #1E90FF;">${settings.title}</h1>
+                <p style="font-size: 12px; text-align: center; margin-top: 4px; color: #555;">${settings.description || ''}</p>
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                <table style="width: 100%; font-size: 12px; line-height: 1.6; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding-right: 15px; vertical-align: top; width: 50%;">
+                            <div style="display: flex; justify-content: space-between;"><strong>Questions:</strong><span>${totalQuestions}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Correct:</strong><span>${correctCount}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Partially Correct:</strong><span>0</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Wrong:</strong><span>${wrongCount}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Not Attempted:</strong><span>${notAttemptedCount}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Marks for Correct:</strong><span>+${settings.correctMarks}</span></div>
+                        </td>
+                        <td style="padding-left: 15px; vertical-align: top; width: 50%;">
+                            <div style="display: flex; justify-content: space-between;"><strong>Marks:</strong><span>${userScore.toFixed(2)} / ${totalScore.toFixed(2)}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Total Marks:</strong><span>${totalScore.toFixed(2)}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Accuracy:</strong><span>${accuracy}%</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Percentage:</strong><span>${percentage}%</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>Duration:</strong><span>${formattedDuration}</span></div>
+                            <div style="display: flex; justify-content: space-between;"><strong>-ve marking for wrong:</strong><span>-${settings.wrongMarks}</span></div>
+                        </td>
+                    </tr>
+                </table>
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px; text-align:center;">OMR Analysis</h3>
+                <div style="font-size: 11px;">${analysisHTML}</div>
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 12px 0;">
+                <div style="font-size: 11px;"><h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold;">How to cross check answers?</h4><p style="margin: 2px 0;">Serial Number with <span style="color: red;">red*</span> color is marked for review</p><p style="margin: 2px 0;">Options with <span style="color: green;">green</span> color is correct chosen option</p><p style="margin: 2px 0;">Options with <span style="color: red;">red</span> color is incorrect chosen option</p><p style="margin: 2px 0;">Options with <span style="background-color: #d1d5db; border-radius:2px; padding: 0 2px;">grey</span> color is correct option but not chosen</p></div>`;
+            
+            document.getElementById('pdf-content').innerHTML = reportHTML;
+        });
+
+        document.getElementById('download-pdf-btn').addEventListener('click', () => {
+            const btn = document.getElementById('download-pdf-btn');
+            const btnText = document.getElementById('btn-text');
+            const loader = document.getElementById('loader');
+            const reportContent = document.getElementById('pdf-content');
+            const reportData = JSON.parse(localStorage.getItem('currentReportData'));
+
+            btnText.style.display = 'none';
+            loader.style.display = 'block';
+            btn.disabled = true;
+
+            html2canvas(reportContent, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const imgWidth = pdfWidth;
+                const imgHeight = imgWidth / ratio;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pdfHeight;
+
+                while (heightLeft > 0) {
+                    position = position - pdfHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+                }
+                
+                pdf.save(`${reportData.settings.title}_Report.pdf`);
+
+                btnText.style.display = 'block';
+                loader.style.display = 'none';
+                btn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
+
